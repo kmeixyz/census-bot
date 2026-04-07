@@ -1,0 +1,55 @@
+// pages/api/query.js
+// Serverless API route — runs on Vercel, never exposed to the browser.
+// The Census API key lives ONLY here via environment variables.
+
+import { parseQuery, formatValue } from "../../lib/censusTranslator";
+import { fetchCensusValue } from "../../lib/censusApi";
+
+export default async function handler(req, res) {
+  // Only allow POST
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  const { query } = req.body;
+
+  if (!query || typeof query !== "string" || query.trim().length === 0) {
+    return res.status(400).json({ error: "Please provide a query." });
+  }
+
+  // Parse the natural language query
+  const parsed = parseQuery(query);
+
+  if (parsed.error) {
+    return res.status(422).json({ error: parsed.error });
+  }
+
+  const { variable, geoParams, locationLabel } = parsed;
+
+  // Grab the API key — server-side only, never sent to browser
+  const apiKey = process.env.CENSUS_API_KEY;
+  if (!apiKey) {
+    console.error("CENSUS_API_KEY is not set");
+    return res.status(500).json({ error: "Server configuration error: missing API key." });
+  }
+
+  try {
+    const rawValue = await fetchCensusValue(variable.id, geoParams, apiKey);
+    const formattedValue = formatValue(rawValue, variable.format);
+
+    return res.status(200).json({
+      query,
+      location: locationLabel,
+      metric: variable.label,
+      value: formattedValue,
+      // Human-readable sentence
+      summary: `The ${variable.label.toLowerCase()} in ${locationLabel} is ${formattedValue}.`,
+      source: "ACS 5-Year Estimates (2022), U.S. Census Bureau",
+    });
+  } catch (err) {
+    console.error("Census fetch error:", err.message);
+    return res.status(500).json({
+      error: err.message || "Failed to fetch data from Census API.",
+    });
+  }
+}
