@@ -68,17 +68,31 @@ export default function Home() {
     <>
       <Head>
         <title>CensusBot — ACS Data Explorer</title>
-        <meta name="description" content="Ask natural language questions about US Census ACS data." />
+        <meta
+          name="description"
+          content="Ask natural language questions about US Census ACS data."
+        />
         <link rel="icon" href="/favicon.ico" />
+
+        {/* Inter font */}
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700&display=swap"
+          rel="stylesheet"
+        />
       </Head>
 
-      <div className={styles.page}>
+      <div
+        className={styles.page}
+        style={{ fontFamily: "'Inter', sans-serif" }}
+      >
         {/* Glow orb */}
         <div className={styles.orb} />
 
         <header className={styles.header}>
           <div className={styles.badge}>ACS 5-YEAR · 2022</div>
-          <h1 className={styles.title}>Census<span className={styles.accent}>Bot</span></h1>
+          <h1 className={styles.title}>
+            Census<span className={styles.accent}>Bot</span>
+          </h1>
           <p className={styles.subtitle}>
             Ask anything about US demographics in plain English.
           </p>
@@ -114,7 +128,9 @@ export default function Home() {
             <div className={styles.result}>
               <div className={styles.resultLabel}>{result.metric}</div>
               <div className={styles.resultValue}>{result.value}</div>
-              <div className={styles.resultLocation}>📍 {result.location}</div>
+              <div className={styles.resultLocation}>
+                📍 {result.location}
+              </div>
               <div className={styles.resultSource}>{result.source}</div>
             </div>
           )}
@@ -132,7 +148,11 @@ export default function Home() {
             <div className={styles.examplesLabel}>try an example</div>
             <div className={styles.exampleGrid}>
               {EXAMPLES.map(ex => (
-                <button key={ex} className={styles.exampleBtn} onClick={() => useExample(ex)}>
+                <button
+                  key={ex}
+                  className={styles.exampleBtn}
+                  onClick={() => useExample(ex)}
+                >
                   {ex}
                 </button>
               ))}
@@ -145,7 +165,10 @@ export default function Home() {
               <div className={styles.historyLabel}>recent queries</div>
               {history.map((item, i) => (
                 <div key={i} className={styles.historyItem}>
-                  <button className={styles.historyQuery} onClick={() => useExample(item.query)}>
+                  <button
+                    className={styles.historyQuery}
+                    onClick={() => useExample(item.query)}
+                  >
                     {item.query}
                   </button>
                   <span className={styles.historyValue}>
