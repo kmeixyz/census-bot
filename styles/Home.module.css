@@ -70,7 +70,7 @@
 /* ── Main ── */
 .main {
   width: 100%;
-  max-width: 680px;
+  max-width: 860px;
   z-index: 1;
   display: flex;
   flex-direction: column;
@@ -339,4 +339,100 @@
   line-height: 1.8;
   z-index: 1;
   letter-spacing: 0.02em;
+}
+
+/* ── Filter row ── */
+.filterRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.filterGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 160px;
+}
+
+.filterLabel {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.optional {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  opacity: 0.7;
+}
+
+.filterIn {
+  font-size: 0.875rem;
+  color: var(--muted);
+  padding-bottom: 10px;
+  flex-shrink: 0;
+}
+
+.selectWrap {
+  position: relative;
+}
+
+.selectWrap::after {
+  content: "▾";
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+  font-size: 0.75rem;
+}
+
+.select {
+  width: 100%;
+  appearance: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  padding: 10px 36px 10px 14px;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+}
+
+.select:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.select option {
+  background: #1a1a2e;
+  color: var(--text);
+}
+
+/* ── Query preview pill ── */
+.queryPreview {
+  font-size: 0.8rem;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 14px;
+  width: 100%;
+  box-sizing: border-box;
+  letter-spacing: 0.01em;
 }
