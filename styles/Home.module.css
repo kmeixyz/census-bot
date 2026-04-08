@@ -54,10 +54,17 @@
   color: var(--text);
   line-height: 1;
   margin-bottom: 0.75rem;
+  text-shadow:
+    0 0 20px rgba(255, 255, 255, 0.25),
+    0 0 60px rgba(255, 255, 255, 0.1);
 }
 
 .accent {
   color: var(--accent);
+  text-shadow:
+    0 0 20px rgba(99, 102, 241, 0.7),
+    0 0 60px rgba(99, 102, 241, 0.4),
+    0 0 100px rgba(99, 102, 241, 0.2);
 }
 
 .subtitle {

@@ -281,8 +281,6 @@ export default function Home() {
 
         <footer className={styles.footer}>
           Data source: U.S. Census Bureau, American Community Survey 5-Year Estimates.
-          <br />
-          This tool is for informational purposes only.
         </footer>
       </div>
     </>
