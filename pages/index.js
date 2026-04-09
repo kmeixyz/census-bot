@@ -259,11 +259,21 @@ export default function Home() {
             </div>
           )}
 
-          {/* Result */}
+          {/* Result — with green glow */}
           {result && (
-            <div className={styles.result}>
+            <div
+              className={styles.result}
+              style={{
+                boxShadow: "0 0 24px rgba(34, 197, 94, 0.12), 0 0 48px rgba(34, 197, 94, 0.06)",
+              }}
+            >
               <div className={styles.resultLabel}>{result.metric}</div>
-              <div className={styles.resultValue}>{result.value}</div>
+              <div
+                className={styles.resultValue}
+                style={{ textShadow: "0 0 20px rgba(255,255,255,0.15)" }}
+              >
+                {result.value}
+              </div>
               <div className={styles.resultLocation}>📍 {result.location}</div>
               <div className={styles.resultSource}>{result.source}</div>
             </div>
