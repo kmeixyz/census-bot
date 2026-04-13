@@ -45,7 +45,7 @@ export default function TrendChart({ data }) {
         color: "var(--green)",
         fontWeight: 600,
         marginBottom: 4,
-        textShadow: "0 0 14px color-mix(in srgb, var(--green) 45%, transparent)",
+        textShadow: "var(--metric-label-glow)",
       }}>
         {metric.toUpperCase()} OVER TIME
       </div>

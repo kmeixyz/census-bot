@@ -1,5 +1,4 @@
-/* styles/globals.css */
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap');
+/* styles/globals.css — theme tokens live on :root; light mode overrides on html[data-theme="light"] */
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -7,17 +6,14 @@
   padding: 0;
 }
 
-:root,
-html[data-theme="dark"] {
-  /* Hero / page — deep navy with soft blue–violet glow (reference dark) */
+/* Default = dark (used before data-theme is set and for dark mode) */
+:root {
+  color-scheme: dark;
   --bg:            #0b0e1e;
-  --page-bg:       radial-gradient(ellipse 130% 90% at 50% -35%, rgba(77, 184, 255, 0.18) 0%, transparent 52%),
-                   radial-gradient(ellipse 100% 70% at 50% 5%, rgba(177, 159, 255, 0.12) 0%, transparent 48%),
-                   #0b0e1e;
   --surface:       #12172b;
   --surface-2:     #1a2138;
-  --border:        rgba(160, 174, 192, 0.14);
-  --border-hover:  rgba(160, 174, 192, 0.28);
+  --border:        rgba(160, 174, 192, 0.22);
+  --border-hover:  rgba(160, 174, 192, 0.32);
   --accent:        #4db8ff;
   --accent-glow:   rgba(77, 184, 255, 0.28);
   --green:         #66ffcc;
@@ -27,8 +23,6 @@ html[data-theme="dark"] {
   --error:         #fc8181;
   --title-gradient: linear-gradient(90deg, #b19fff 0%, #4db8ff 48%, #66ffcc 100%);
   --orb-gradient: radial-gradient(ellipse at 50% 0%, rgba(77, 184, 255, 0.22) 0%, rgba(177, 159, 255, 0.1) 35%, transparent 65%);
-  --title-shadow:  none;
-  --accent-shadow: none;
   --badge-bg:      rgba(102, 255, 204, 0.08);
   --badge-border:  rgba(102, 255, 204, 0.28);
   --select-option-bg: #151a2e;
@@ -51,12 +45,46 @@ html[data-theme="dark"] {
   --font-mono:  'DM Mono', monospace;
 }
 
+html[data-theme="dark"] {
+  color-scheme: dark;
+  /* Same tokens as :root — keeps attribute and variables aligned when script sets dark */
+  --bg:            #0b0e1e;
+  --surface:       #12172b;
+  --surface-2:     #1a2138;
+  --border:        rgba(160, 174, 192, 0.22);
+  --border-hover:  rgba(160, 174, 192, 0.32);
+  --accent:        #4db8ff;
+  --accent-glow:   rgba(77, 184, 255, 0.28);
+  --green:         #66ffcc;
+  --muted:         #a0aec0;
+  --text:          #f7fafc;
+  --text-dim:      #a0aec0;
+  --error:         #fc8181;
+  --title-gradient: linear-gradient(90deg, #b19fff 0%, #4db8ff 48%, #66ffcc 100%);
+  --orb-gradient: radial-gradient(ellipse at 50% 0%, rgba(77, 184, 255, 0.22) 0%, rgba(177, 159, 255, 0.1) 35%, transparent 65%);
+  --badge-bg:      rgba(102, 255, 204, 0.08);
+  --badge-border:  rgba(102, 255, 204, 0.28);
+  --select-option-bg: #151a2e;
+  --result-value-shadow: 0 0 28px rgba(77, 184, 255, 0.12);
+  --chart-surface:   #12172b;
+  --chart-border:    rgba(160, 174, 192, 0.12);
+  --chart-grid:      rgba(160, 174, 192, 0.1);
+  --chart-axis:      rgba(160, 174, 192, 0.2);
+  --chart-tick:      #a0aec0;
+  --chart-tooltip-bg: #151a2e;
+  --chart-tooltip-border: rgba(160, 174, 192, 0.2);
+  --chart-muted:     #a0aec0;
+  --chart-faint:     #718096;
+  --chart-source:    #718096;
+  --chart-empty:     #718096;
+  --result-glow:     0 0 32px rgba(102, 255, 204, 0.1), 0 0 56px rgba(77, 184, 255, 0.08);
+  --chart-card-glow: 0 0 40px rgba(177, 159, 255, 0.12), 0 0 64px rgba(77, 184, 255, 0.08);
+  --metric-label-glow: 0 0 14px rgba(102, 255, 204, 0.45);
+}
+
 html[data-theme="light"] {
-  /* Cool off-white with airy highlights (reference light) */
+  color-scheme: light;
   --bg:            #f8f9fd;
-  --page-bg:       radial-gradient(ellipse 110% 70% at 50% -25%, rgba(98, 182, 255, 0.16) 0%, transparent 50%),
-                   radial-gradient(ellipse 90% 55% at 85% 10%, rgba(165, 148, 249, 0.1) 0%, transparent 45%),
-                   #f8f9fd;
   --surface:       #ffffff;
   --surface-2:     #eef2f8;
   --border:        #e2e8f0;
@@ -70,8 +98,6 @@ html[data-theme="light"] {
   --error:         #e53e3e;
   --title-gradient: linear-gradient(90deg, #a594f9 0%, #62b6ff 48%, #47d1b2 100%);
   --orb-gradient: radial-gradient(ellipse at 50% 0%, rgba(98, 182, 255, 0.35) 0%, rgba(165, 148, 249, 0.15) 40%, transparent 68%);
-  --title-shadow:  none;
-  --accent-shadow: none;
   --badge-bg:      rgba(71, 209, 178, 0.12);
   --badge-border:  rgba(71, 209, 178, 0.35);
   --select-option-bg: #ffffff;
@@ -89,11 +115,17 @@ html[data-theme="light"] {
   --chart-empty:     #718096;
   --result-glow:     0 0 28px rgba(71, 209, 178, 0.12), 0 4px 20px rgba(45, 55, 72, 0.06);
   --chart-card-glow: 0 0 36px rgba(165, 148, 249, 0.12), 0 8px 28px rgba(45, 55, 72, 0.06);
+  --metric-label-glow: 0 0 12px rgba(71, 209, 178, 0.4);
 }
 
-html, body {
-  background: var(--page-bg);
+html {
   background-color: var(--bg);
+  color: var(--text);
+  min-height: 100%;
+}
+
+body {
+  background-color: transparent;
   color: var(--text);
   font-family: var(--font-mono);
   min-height: 100vh;

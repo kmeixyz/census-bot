@@ -53,15 +53,18 @@
   letter-spacing: -0.03em;
   line-height: 1;
   margin-bottom: 0.75rem;
-  background-image: var(--title-gradient);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
+  /* Solid fallback — avoids invisible text if gradient / clip is unsupported or variables fail */
+  color: var(--text);
 }
 
-.title span {
-  -webkit-text-fill-color: transparent;
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .title {
+    background-image: var(--title-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
 }
 
 .subtitle {
