@@ -9,73 +9,91 @@
 
 :root,
 html[data-theme="dark"] {
-  --bg:          #0a0a0f;
-  --surface:     #111118;
-  --surface-2:   #1e1e30;
-  --border:      #1e1e2e;
-  --border-hover:rgba(255, 255, 255, 0.25);
-  --accent:      #5b6af8;
-  --accent-glow: #5b6af840;
-  --green:       #3cffa0;
-  --muted:       #6b6b8a;
-  --text:        #e8e8f2;
-  --text-dim:    #9898b8;
-  --error:       #ff5c7a;
-  --orb-gradient: radial-gradient(ellipse, #5b6af820 0%, transparent 70%);
-  --title-shadow: 0 0 20px rgba(255, 255, 255, 0.25), 0 0 60px rgba(255, 255, 255, 0.1);
-  --accent-shadow: 0 0 20px rgba(99, 102, 241, 0.7), 0 0 60px rgba(99, 102, 241, 0.4), 0 0 100px rgba(99, 102, 241, 0.2);
-  --select-option-bg: #1a1a2e;
-  --result-value-shadow: 0 0 20px rgba(255, 255, 255, 0.15);
-  --chart-surface: #0d0d10;
-  --chart-border: #1e1e28;
-  --chart-grid: #1e1e28;
-  --chart-axis: #2a2a35;
-  --chart-tick: #555;
-  --chart-tooltip-bg: #0f0f11;
-  --chart-tooltip-border: #2a2a35;
-  --chart-muted: #888;
-  --chart-faint: #666;
-  --chart-source: #444;
-  --chart-empty: #555;
-  --result-glow: 0 0 24px rgba(34, 197, 94, 0.12), 0 0 48px rgba(34, 197, 94, 0.06);
+  /* Hero / page — deep navy with soft blue–violet glow (reference dark) */
+  --bg:            #0b0e1e;
+  --page-bg:       radial-gradient(ellipse 130% 90% at 50% -35%, rgba(77, 184, 255, 0.18) 0%, transparent 52%),
+                   radial-gradient(ellipse 100% 70% at 50% 5%, rgba(177, 159, 255, 0.12) 0%, transparent 48%),
+                   #0b0e1e;
+  --surface:       #12172b;
+  --surface-2:     #1a2138;
+  --border:        rgba(160, 174, 192, 0.14);
+  --border-hover:  rgba(160, 174, 192, 0.28);
+  --accent:        #4db8ff;
+  --accent-glow:   rgba(77, 184, 255, 0.28);
+  --green:         #66ffcc;
+  --muted:         #a0aec0;
+  --text:          #f7fafc;
+  --text-dim:      #a0aec0;
+  --error:         #fc8181;
+  --title-gradient: linear-gradient(90deg, #b19fff 0%, #4db8ff 48%, #66ffcc 100%);
+  --orb-gradient: radial-gradient(ellipse at 50% 0%, rgba(77, 184, 255, 0.22) 0%, rgba(177, 159, 255, 0.1) 35%, transparent 65%);
+  --title-shadow:  none;
+  --accent-shadow: none;
+  --badge-bg:      rgba(102, 255, 204, 0.08);
+  --badge-border:  rgba(102, 255, 204, 0.28);
+  --select-option-bg: #151a2e;
+  --result-value-shadow: 0 0 28px rgba(77, 184, 255, 0.12);
+  --chart-surface:   #12172b;
+  --chart-border:    rgba(160, 174, 192, 0.12);
+  --chart-grid:      rgba(160, 174, 192, 0.1);
+  --chart-axis:      rgba(160, 174, 192, 0.2);
+  --chart-tick:      #a0aec0;
+  --chart-tooltip-bg: #151a2e;
+  --chart-tooltip-border: rgba(160, 174, 192, 0.2);
+  --chart-muted:     #a0aec0;
+  --chart-faint:     #718096;
+  --chart-source:    #718096;
+  --chart-empty:     #718096;
+  --result-glow:     0 0 32px rgba(102, 255, 204, 0.1), 0 0 56px rgba(77, 184, 255, 0.08);
+  --chart-card-glow: 0 0 40px rgba(177, 159, 255, 0.12), 0 0 64px rgba(77, 184, 255, 0.08);
+  --metric-label-glow: 0 0 14px rgba(102, 255, 204, 0.45);
   --font-head:  'Syne', sans-serif;
   --font-mono:  'DM Mono', monospace;
 }
 
 html[data-theme="light"] {
-  --bg:          #f4f5fa;
-  --surface:     #ffffff;
-  --surface-2:   #e8eaf2;
-  --border:      #d8dbe8;
-  --border-hover:rgba(0, 0, 0, 0.12);
-  --accent:      #4d54e8;
-  --accent-glow: #5b6af830;
-  --green:       #059669;
-  --muted:       #64748b;
-  --text:        #0f172a;
-  --text-dim:    #475569;
-  --error:       #dc2626;
-  --orb-gradient: radial-gradient(ellipse, #5b6af828 0%, transparent 70%);
-  --title-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
-  --accent-shadow: 0 0 24px rgba(77, 84, 232, 0.35), 0 0 48px rgba(77, 84, 232, 0.15);
+  /* Cool off-white with airy highlights (reference light) */
+  --bg:            #f8f9fd;
+  --page-bg:       radial-gradient(ellipse 110% 70% at 50% -25%, rgba(98, 182, 255, 0.16) 0%, transparent 50%),
+                   radial-gradient(ellipse 90% 55% at 85% 10%, rgba(165, 148, 249, 0.1) 0%, transparent 45%),
+                   #f8f9fd;
+  --surface:       #ffffff;
+  --surface-2:     #eef2f8;
+  --border:        #e2e8f0;
+  --border-hover:  rgba(45, 55, 72, 0.14);
+  --accent:        #62b6ff;
+  --accent-glow:   rgba(98, 182, 255, 0.35);
+  --green:         #47d1b2;
+  --muted:         #4a5568;
+  --text:          #2d3748;
+  --text-dim:      #4a5568;
+  --error:         #e53e3e;
+  --title-gradient: linear-gradient(90deg, #a594f9 0%, #62b6ff 48%, #47d1b2 100%);
+  --orb-gradient: radial-gradient(ellipse at 50% 0%, rgba(98, 182, 255, 0.35) 0%, rgba(165, 148, 249, 0.15) 40%, transparent 68%);
+  --title-shadow:  none;
+  --accent-shadow: none;
+  --badge-bg:      rgba(71, 209, 178, 0.12);
+  --badge-border:  rgba(71, 209, 178, 0.35);
   --select-option-bg: #ffffff;
   --result-value-shadow: none;
-  --chart-surface: #ffffff;
-  --chart-border: #e2e8f0;
-  --chart-grid: #e2e8f0;
-  --chart-axis: #cbd5e1;
-  --chart-tick: #64748b;
+  --chart-surface:   #ffffff;
+  --chart-border:    #e2e8f0;
+  --chart-grid:      #edf2f7;
+  --chart-axis:      #cbd5e1;
+  --chart-tick:      #718096;
   --chart-tooltip-bg: #ffffff;
   --chart-tooltip-border: #e2e8f0;
-  --chart-muted: #64748b;
-  --chart-faint: #94a3b8;
-  --chart-source: #94a3b8;
-  --chart-empty: #64748b;
-  --result-glow: 0 0 20px rgba(5, 150, 105, 0.08), 0 2px 8px rgba(15, 23, 42, 0.06);
+  --chart-muted:     #718096;
+  --chart-faint:     #a0aec0;
+  --chart-source:    #a0aec0;
+  --chart-empty:     #718096;
+  --result-glow:     0 0 28px rgba(71, 209, 178, 0.12), 0 4px 20px rgba(45, 55, 72, 0.06);
+  --chart-card-glow: 0 0 36px rgba(165, 148, 249, 0.12), 0 8px 28px rgba(45, 55, 72, 0.06);
 }
 
 html, body {
-  background: var(--bg);
+  background: var(--page-bg);
+  background-color: var(--bg);
   color: var(--text);
   font-family: var(--font-mono);
   min-height: 100vh;

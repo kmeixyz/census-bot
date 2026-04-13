@@ -39,8 +39,8 @@
   font-weight: 500;
   letter-spacing: 0.15em;
   color: var(--green);
-  background: #3cffa010;
-  border: 1px solid #3cffa025;
+  background: var(--badge-bg);
+  border: 1px solid var(--badge-border);
   border-radius: 3px;
   padding: 0.3em 0.75em;
   margin-bottom: 1.25rem;
@@ -51,15 +51,17 @@
   font-size: clamp(2.5rem, 8vw, 4.5rem);
   font-weight: 800;
   letter-spacing: -0.03em;
-  color: var(--text);
   line-height: 1;
   margin-bottom: 0.75rem;
-  text-shadow: var(--title-shadow);
+  background-image: var(--title-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
 }
 
-.accent {
-  color: var(--accent);
-  text-shadow: var(--accent-shadow);
+.title span {
+  -webkit-text-fill-color: transparent;
 }
 
 .subtitle {

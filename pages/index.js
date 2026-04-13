@@ -176,7 +176,7 @@ export default function Home() {
         <header className={styles.header}>
           <div className={styles.badge}>ACS 5-YEAR · 2022</div>
           <h1 className={styles.title}>
-            Census<span className={styles.accent}>Bot</span>
+            Census<span>Bot</span>
           </h1>
           <p className={styles.subtitle}>
             Explore US demographics with filters.

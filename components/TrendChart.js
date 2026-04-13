@@ -37,7 +37,7 @@ export default function TrendChart({ data }) {
       borderRadius: 12,
       padding: "24px 28px",
       marginTop: 16,
-      boxShadow: "0 0 24px rgba(99, 102, 241, 0.15), 0 0 48px rgba(99, 102, 241, 0.08)",
+      boxShadow: "var(--chart-card-glow)",
     }}>
       <div style={{
         fontSize: 11,
@@ -45,7 +45,7 @@ export default function TrendChart({ data }) {
         color: "var(--green)",
         fontWeight: 600,
         marginBottom: 4,
-        textShadow: "0 0 12px rgba(34, 197, 94, 0.6)",
+        textShadow: "0 0 14px color-mix(in srgb, var(--green) 45%, transparent)",
       }}>
         {metric.toUpperCase()} OVER TIME
       </div>
