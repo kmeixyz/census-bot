@@ -7,19 +7,71 @@
   padding: 0;
 }
 
-:root {
-  --bg:         #0a0a0f;
-  --surface:    #111118;
-  --border:     #1e1e2e;
-  --accent:     #5b6af8;
-  --accent-glow:#5b6af840;
-  --green:      #3cffa0;
-  --muted:      #6b6b8a;
-  --text:       #e8e8f2;
-  --text-dim:   #9898b8;
-  --error:      #ff5c7a;
+:root,
+html[data-theme="dark"] {
+  --bg:          #0a0a0f;
+  --surface:     #111118;
+  --surface-2:   #1e1e30;
+  --border:      #1e1e2e;
+  --border-hover:rgba(255, 255, 255, 0.25);
+  --accent:      #5b6af8;
+  --accent-glow: #5b6af840;
+  --green:       #3cffa0;
+  --muted:       #6b6b8a;
+  --text:        #e8e8f2;
+  --text-dim:    #9898b8;
+  --error:       #ff5c7a;
+  --orb-gradient: radial-gradient(ellipse, #5b6af820 0%, transparent 70%);
+  --title-shadow: 0 0 20px rgba(255, 255, 255, 0.25), 0 0 60px rgba(255, 255, 255, 0.1);
+  --accent-shadow: 0 0 20px rgba(99, 102, 241, 0.7), 0 0 60px rgba(99, 102, 241, 0.4), 0 0 100px rgba(99, 102, 241, 0.2);
+  --select-option-bg: #1a1a2e;
+  --result-value-shadow: 0 0 20px rgba(255, 255, 255, 0.15);
+  --chart-surface: #0d0d10;
+  --chart-border: #1e1e28;
+  --chart-grid: #1e1e28;
+  --chart-axis: #2a2a35;
+  --chart-tick: #555;
+  --chart-tooltip-bg: #0f0f11;
+  --chart-tooltip-border: #2a2a35;
+  --chart-muted: #888;
+  --chart-faint: #666;
+  --chart-source: #444;
+  --chart-empty: #555;
+  --result-glow: 0 0 24px rgba(34, 197, 94, 0.12), 0 0 48px rgba(34, 197, 94, 0.06);
   --font-head:  'Syne', sans-serif;
   --font-mono:  'DM Mono', monospace;
+}
+
+html[data-theme="light"] {
+  --bg:          #f4f5fa;
+  --surface:     #ffffff;
+  --surface-2:   #e8eaf2;
+  --border:      #d8dbe8;
+  --border-hover:rgba(0, 0, 0, 0.12);
+  --accent:      #4d54e8;
+  --accent-glow: #5b6af830;
+  --green:       #059669;
+  --muted:       #64748b;
+  --text:        #0f172a;
+  --text-dim:    #475569;
+  --error:       #dc2626;
+  --orb-gradient: radial-gradient(ellipse, #5b6af828 0%, transparent 70%);
+  --title-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --accent-shadow: 0 0 24px rgba(77, 84, 232, 0.35), 0 0 48px rgba(77, 84, 232, 0.15);
+  --select-option-bg: #ffffff;
+  --result-value-shadow: none;
+  --chart-surface: #ffffff;
+  --chart-border: #e2e8f0;
+  --chart-grid: #e2e8f0;
+  --chart-axis: #cbd5e1;
+  --chart-tick: #64748b;
+  --chart-tooltip-bg: #ffffff;
+  --chart-tooltip-border: #e2e8f0;
+  --chart-muted: #64748b;
+  --chart-faint: #94a3b8;
+  --chart-source: #94a3b8;
+  --chart-empty: #64748b;
+  --result-glow: 0 0 20px rgba(5, 150, 105, 0.08), 0 2px 8px rgba(15, 23, 42, 0.06);
 }
 
 html, body {

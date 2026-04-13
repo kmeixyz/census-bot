@@ -20,7 +20,7 @@
   width: 600px;
   height: 600px;
   border-radius: 50%;
-  background: radial-gradient(ellipse, #5b6af820 0%, transparent 70%);
+  background: var(--orb-gradient);
   pointer-events: none;
   z-index: 0;
 }
@@ -54,17 +54,12 @@
   color: var(--text);
   line-height: 1;
   margin-bottom: 0.75rem;
-  text-shadow:
-    0 0 20px rgba(255, 255, 255, 0.25),
-    0 0 60px rgba(255, 255, 255, 0.1);
+  text-shadow: var(--title-shadow);
 }
 
 .accent {
   color: var(--accent);
-  text-shadow:
-    0 0 20px rgba(99, 102, 241, 0.7),
-    0 0 60px rgba(99, 102, 241, 0.4),
-    0 0 100px rgba(99, 102, 241, 0.2);
+  text-shadow: var(--accent-shadow);
 }
 
 .subtitle {
@@ -418,7 +413,7 @@
 }
 
 .select:hover {
-  border-color: rgba(255, 255, 255, 0.25);
+  border-color: var(--border-hover);
 }
 
 .select:focus {
@@ -427,8 +422,48 @@
 }
 
 .select option {
-  background: #1a1a2e;
+  background: var(--select-option-bg);
   color: var(--text);
+}
+
+.themeToggle {
+  position: fixed;
+  top: 1.25rem;
+  right: 1.25rem;
+  z-index: 10;
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+
+.themeToggle:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.themeToggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.themeToggleIcon {
+  width: 20px;
+  height: 20px;
+}
+
+.trendButton {
+  margin-top: 12px;
+  background: var(--surface-2);
+  font-size: 13px;
 }
 
 /* ── Query preview pill ── */

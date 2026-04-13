@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import Head from "next/head";
 import styles from "../styles/Home.module.css";
 import TrendChart from "../components/TrendChart";
+import ThemeToggle from "../components/ThemeToggle";
 
 const QUERY_TYPES = [
   "median income",
@@ -170,6 +171,7 @@ export default function Home() {
 
       <div className={styles.page} style={{ fontFamily: "'Inter', sans-serif" }}>
         <div className={styles.orb} />
+        <ThemeToggle />
 
         <header className={styles.header}>
           <div className={styles.badge}>ACS 5-YEAR · 2022</div>
@@ -263,14 +265,12 @@ export default function Home() {
           {result && (
             <div
               className={styles.result}
-              style={{
-                boxShadow: "0 0 24px rgba(34, 197, 94, 0.12), 0 0 48px rgba(34, 197, 94, 0.06)",
-              }}
+              style={{ boxShadow: "var(--result-glow)" }}
             >
               <div className={styles.resultLabel}>{result.metric}</div>
               <div
                 className={styles.resultValue}
-                style={{ textShadow: "0 0 20px rgba(255,255,255,0.15)" }}
+                style={{ textShadow: "var(--result-value-shadow)" }}
               >
                 {result.value}
               </div>
@@ -282,10 +282,9 @@ export default function Home() {
           {/* Trend button — only appears after a successful result */}
           {result && (
             <button
-              className={styles.button}
+              className={`${styles.button} ${styles.trendButton}`}
               onClick={handleTrend}
               disabled={trendLoading}
-              style={{ marginTop: 12, background: "#1e1e30", fontSize: 13 }}
             >
               {trendLoading ? <span className={styles.spinner} /> : "📈 SHOW 5-YEAR TREND"}
             </button>
