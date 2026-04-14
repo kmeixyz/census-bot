@@ -3,6 +3,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
 } from "recharts";
+import homeStyles from "../styles/Home.module.css";
 
 function CustomTooltip({ active, payload, label, metric }) {
   if (!active || !payload?.length) return null;
@@ -30,15 +31,14 @@ export default function TrendChart({ data }) {
   const validPoints = points.filter(p => p.numericValue !== null);
 
   return (
-    <div style={{
-      background: "var(--chart-surface)",
-      border: "1px solid var(--chart-border)",
-      borderLeft: "3px solid var(--green)",
-      borderRadius: 12,
-      padding: "24px 28px",
-      marginTop: 16,
-      boxShadow: "var(--chart-card-glow)",
-    }}>
+    <div
+      className={homeStyles.trendCard}
+      style={{
+        background: "var(--chart-surface)",
+        padding: "24px 28px",
+        marginTop: 16,
+      }}
+    >
       <div style={{
         fontSize: 11,
         letterSpacing: "0.12em",

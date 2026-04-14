@@ -177,13 +177,35 @@
 .result {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--green);
   border-radius: 8px;
   padding: 1.5rem 1.75rem;
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
   animation: slideIn 0.3s ease;
+  transition: border-color 0.22s ease;
+}
+
+.result:hover {
+  border-color: rgba(125, 211, 252, 0.72);
+}
+
+:global(html[data-theme="light"]) .result:hover {
+  border-color: rgba(37, 99, 235, 0.42);
+}
+
+.trendCard {
+  border: 1px solid var(--chart-border);
+  border-radius: 12px;
+  transition: border-color 0.22s ease;
+}
+
+.trendCard:hover {
+  border-color: rgba(125, 211, 252, 0.72);
+}
+
+:global(html[data-theme="light"]) .trendCard:hover {
+  border-color: rgba(37, 99, 235, 0.42);
 }
 
 @keyframes slideIn {
@@ -432,12 +454,9 @@
 }
 
 .themeToggle {
-  position: fixed;
-  top: 1.25rem;
-  right: 1.25rem;
-  z-index: 10;
-  width: 42px;
-  height: 42px;
+  position: relative;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -461,8 +480,8 @@
 }
 
 .themeToggleIcon {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
 }
 
 .trendButton {

@@ -1,0 +1,202 @@
+.shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+.orb {
+  display: none;
+}
+
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 1rem;
+  padding: 0.85rem clamp(1.25rem, 3vw, 2.5rem) 0.85rem clamp(1.5rem, 4vw, 3rem);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
+  transition:
+    background 0.22s ease,
+    border-color 0.22s ease,
+    box-shadow 0.22s ease,
+    backdrop-filter 0.22s ease;
+}
+
+/* ~80% transparent bar when scrolled (20% tint + blur keeps links readable) */
+.navScrolled {
+  background: rgba(11, 14, 30, 0.2);
+  border-bottom-color: rgba(160, 174, 192, 0.12);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(16px) saturate(1.35);
+  -webkit-backdrop-filter: blur(16px) saturate(1.35);
+}
+
+:global(html[data-theme="light"]) .navScrolled {
+  background: rgba(255, 255, 255, 0.2);
+  border-bottom-color: rgba(45, 55, 72, 0.1);
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.06);
+}
+
+.navLeft {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  margin-left: clamp(0.35rem, 1.2vw, 0.85rem);
+}
+
+.logoText {
+  font-weight: 800;
+  font-size: clamp(1.12rem, 1.1rem + 0.35vw, 1.28rem);
+  letter-spacing: -0.02em;
+  color: var(--text);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.navTrailing {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: clamp(1.05rem, 2.15vw, 1.68rem);
+}
+
+.navTrailing > button {
+  flex-shrink: 0;
+}
+
+.navTrailing .cta {
+  flex-shrink: 0;
+}
+
+.navLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.62rem 1.2rem;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: color 0.18s ease, background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+/* Hover only when not the current page — bright outline like reference */
+.navLink:hover:not(.navLinkActive) {
+  color: var(--text);
+  background: var(--surface);
+  border-color: rgba(248, 250, 252, 0.82);
+  box-shadow:
+    0 0 0 1px rgba(248, 250, 252, 0.22),
+    0 0 22px rgba(248, 250, 252, 0.12);
+}
+
+:global(html[data-theme="light"]) .navLink:hover:not(.navLinkActive) {
+  border-color: rgba(15, 23, 42, 0.35);
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.06);
+}
+
+.navLink.navLinkActive {
+  color: var(--text);
+  background: var(--surface-2);
+  border-color: var(--accent);
+}
+
+.navLink.navLinkActive:hover {
+  color: var(--text);
+  background: var(--surface-2);
+  border-color: var(--accent);
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.62rem clamp(1.15rem, 2.6vw, 1.95rem);
+  border-radius: 999px;
+  border: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  text-decoration: none;
+  text-align: center;
+  cursor: pointer;
+  color: #fff;
+  background: linear-gradient(90deg, #9333ea 0%, #2563eb 55%, #0ea5b7 100%);
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.22);
+  transition: filter 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease;
+}
+
+.ctaIcon {
+  flex-shrink: 0;
+  display: block;
+  transition: transform 0.28s cubic-bezier(0.33, 1, 0.32, 1);
+}
+
+.cta:hover:not(.ctaActive) {
+  filter: brightness(1.26) saturate(1.24);
+}
+
+.cta:hover:not(.ctaActive) .ctaIcon {
+  transform: rotate(14deg);
+}
+
+.cta.ctaActive {
+  box-shadow:
+    0 0 0 2px rgba(129, 140, 248, 0.75),
+    0 0 32px rgba(99, 102, 241, 0.45),
+    0 0 48px rgba(168, 85, 247, 0.25);
+  filter: brightness(1.06);
+}
+
+.cta.ctaActive:hover {
+  opacity: 1;
+  filter: brightness(1.08);
+}
+
+:global(html[data-theme="light"]) .cta.ctaActive {
+  box-shadow:
+    0 0 0 2px rgba(79, 70, 229, 0.45),
+    0 0 28px rgba(99, 102, 241, 0.28);
+  filter: brightness(1.02);
+}
+
+.main {
+  flex: 1;
+  width: 100%;
+  max-width: min(1220px, 92vw);
+  margin: 0 auto;
+  padding: 2.5rem clamp(1.25rem, 4vw, 2.5rem) 4rem;
+  position: relative;
+  z-index: 1;
+  overflow-x: clip;
+}
+
+@media (max-width: 720px) {
+  .nav {
+    flex-wrap: wrap;
+    row-gap: 0.65rem;
+  }
+
+  .navTrailing {
+    margin-left: 0;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .cta {
+    display: none;
+  }
+}

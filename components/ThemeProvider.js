@@ -26,15 +26,8 @@ function readStoredTheme() {
   }
 }
 
-function readSystemTheme() {
-  if (typeof window === "undefined") return "dark";
-  return window.matchMedia("(prefers-color-scheme: light)").matches
-    ? "light"
-    : "dark";
-}
-
 function resolveTheme() {
-  return readStoredTheme() ?? readSystemTheme();
+  return readStoredTheme() ?? "dark";
 }
 
 function applyTheme(theme) {
