@@ -204,9 +204,14 @@
   background: rgba(45, 212, 191, 0.18);
 }
 
-.openDataGlyph {
-  font-size: 1.25em;
-  line-height: 1;
+.featureIcon {
+  width: 1.35em;
+  height: 1.35em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .featureCardTeal:hover .iconTeal {
