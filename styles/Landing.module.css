@@ -338,6 +338,62 @@
   letter-spacing: 0.03em;
 }
 
+@media (max-width: 720px) {
+  .cardGrid {
+    max-width: 22rem;
+    gap: 1rem;
+    margin-bottom: 1.8rem;
+  }
+
+  .featureCard {
+    border-radius: 14px;
+    padding: 1.2rem 1rem 1.05rem;
+    min-height: 0;
+  }
+
+  .iconCircle {
+    width: 52px;
+    height: 52px;
+    margin-bottom: 0.8rem;
+  }
+
+  .featureTitle {
+    font-size: 1.15rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .featureBody {
+    font-size: 0.9rem;
+    line-height: 1.45;
+    max-width: 100%;
+  }
+
+  .ctaLarge {
+    gap: 0.55rem;
+    padding: 0.72rem 1rem;
+    min-width: min(16.5rem, 86vw);
+    border-radius: 12px;
+  }
+
+  .ctaLargeLabel {
+    font-size: 1.02rem;
+  }
+
+  .ctaLargeIcon :global(svg) {
+    width: 22px;
+    height: 22px;
+  }
+
+  .ctaLargeArrow {
+    font-size: 1.1rem;
+  }
+
+  .ctaSub {
+    margin-top: 0.65rem;
+    font-size: 0.92rem;
+  }
+}
+
 /* About page */
 .aboutHero {
   text-align: center;
