@@ -93,8 +93,10 @@
   align-items: center;
   justify-content: flex-start;
   position: relative;
-  /* Stable compositing layer — avoids WebKit repainting sibling grid items when shadow/z-index changes. */
-  transform: translate3d(0, 0, 0);
+  /* Keep compositing stable without forcing 3D transforms (prevents Safari hover jitter). */
+  will-change: box-shadow, border-color;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
   isolation: isolate;
   transition:
     box-shadow 0.4s ease,
@@ -109,10 +111,6 @@
   justify-content: flex-start;
   width: 100%;
   flex: 1;
-  transform: translateZ(0);
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  -webkit-font-smoothing: antialiased;
 }
 
 .featureCardPurple {
