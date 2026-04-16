@@ -74,11 +74,17 @@
 
 @media (max-width: 720px) {
   .leadStrong {
-    font-size: 1.32rem;
+    font-size: 1.22rem;
+    line-height: 1.38;
+    max-width: 20rem;
+    text-wrap: balance;
   }
 
   .lead {
-    font-size: 1rem;
+    font-size: 0.98rem;
+    line-height: 1.52;
+    max-width: 21rem;
+    text-wrap: balance;
   }
 }
 
