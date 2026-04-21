@@ -9,18 +9,39 @@ import { QUERY_TYPES } from "../../lib/censusConstants";
 import fs from "fs";
 import path from "path";
 
+const MODEL = "claude-3-5-haiku-20241022";
+const MAX_TOKENS = 1024;
+const LOOP_TIMEOUT_MS = 25_000; // 25s total budget for the agentic loop
+// Warn if system prompt exceeds this many chars (~30k tokens ≈ 120k chars)
+const SYSTEM_PROMPT_WARN_CHARS = 80_000;
+
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-// ── Skill loader ──────────────────────────────────────────────────────────────
+// ── Skill loader — cached at module level so files are only read once per cold start ──
 const SKILLS_DIR = path.join(process.cwd(), "skills");
 
-// Always-on general skill
-function loadGeneralSkill() {
+const _skillCache = new Map();
+
+function readSkillCached(filePath) {
+  if (_skillCache.has(filePath)) return _skillCache.get(filePath);
   try {
-    return fs.readFileSync(path.join(SKILLS_DIR, "acs-general", "ACS_SKILL.md"), "utf8");
+    const content = fs.readFileSync(filePath, "utf8");
+    _skillCache.set(filePath, content);
+    return content;
   } catch {
+    _skillCache.set(filePath, ""); // cache miss so we don't retry on every request
     return "";
   }
+}
+
+// Always-on skills — loaded on every request
+const ALWAYS_ON_FILES = [
+  path.join(SKILLS_DIR, "acs-general", "ACS_SKILL.md"),
+  path.join(SKILLS_DIR, "humanize", "Humanize_SKILL.md"),
+];
+
+function loadAlwaysOnSkills() {
+  return ALWAYS_ON_FILES.map(readSkillCached).filter(Boolean);
 }
 
 // Conditional skills — loaded only when the message matches keywords
@@ -52,11 +73,8 @@ function loadConditionalSkills(userMessage) {
   const loaded = [];
   for (const skill of CONDITIONAL_SKILLS) {
     if (skill.keywords.some(kw => lower.includes(kw))) {
-      try {
-        loaded.push(fs.readFileSync(skill.file, "utf8"));
-      } catch {
-        // skill file missing — skip
-      }
+      const content = readSkillCached(skill.file);
+      if (content) loaded.push(content);
     }
   }
   return loaded;
@@ -105,12 +123,21 @@ Guidelines:
 - For general questions about what ACS data means, answer from your knowledge.`;
 
 function buildSystemPrompt(userMessage) {
-  const general = loadGeneralSkill();
+  const alwaysOn = loadAlwaysOnSkills();
   const conditional = loadConditionalSkills(userMessage);
   const parts = [BASE_SYSTEM_PROMPT];
-  if (general) parts.push("---\n" + general);
+  if (alwaysOn.length > 0) parts.push("---\n" + alwaysOn.join("\n\n---\n"));
   if (conditional.length > 0) parts.push("---\n" + conditional.join("\n\n---\n"));
-  return parts.join("\n\n");
+  const prompt = parts.join("\n\n");
+
+  if (prompt.length > SYSTEM_PROMPT_WARN_CHARS) {
+    console.warn(
+      `[chat] System prompt is large (${prompt.length} chars / ~${Math.round(prompt.length / 4)} tokens). ` +
+      "Consider trimming skills to avoid hitting context limits."
+    );
+  }
+
+  return prompt;
 }
 
 async function runCensusTool(toolInput) {
@@ -137,7 +164,8 @@ async function runCensusTool(toolInput) {
       source: "ACS 5-Year Estimates (2022), U.S. Census Bureau",
     };
   } catch (err) {
-    return { error: err.message || "Failed to fetch Census data." };
+    // Ensure the error message is always a plain string — avoids JSON.stringify issues
+    return { error: String(err?.message || "Failed to fetch Census data.") };
   }
 }
 
@@ -157,45 +185,65 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Agentic loop: keep running until Claude stops requesting tool calls
     let currentMessages = messages;
     let finalReply = null;
+    const loopDeadline = Date.now() + LOOP_TIMEOUT_MS;
 
     for (let i = 0; i < 5; i++) {
-      // Build system prompt with general skill always + conditional skills for this message
-      const latestUserMsg = currentMessages.filter(m => m.role === "user" && typeof m.content === "string").slice(-1)[0]?.content || "";
+      // Enforce total loop timeout
+      const remaining = loopDeadline - Date.now();
+      if (remaining <= 0) {
+        return res.status(504).json({ error: "Request timed out. Try a simpler question." });
+      }
+
+      const latestUserMsg = currentMessages
+        .filter(m => m.role === "user" && typeof m.content === "string")
+        .slice(-1)[0]?.content || "";
+
       const systemPrompt = buildSystemPrompt(latestUserMsg);
 
-      const response = await client.messages.create({
-        model: "claude-haiku-4-5",
-        max_tokens: 1024,
+      // Race the Claude call against the remaining timeout budget
+      const responsePromise = client.messages.create({
+        model: MODEL,
+        max_tokens: MAX_TOKENS,
         system: systemPrompt,
         tools: [CENSUS_TOOL],
         messages: currentMessages,
       });
 
-      // No tool calls — we have the final reply
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Request timed out. Try a simpler question.")), remaining)
+      );
+
+      const response = await Promise.race([responsePromise, timeoutPromise]);
+
       if (response.stop_reason === "end_turn") {
         const textBlock = response.content.find(b => b.type === "text");
         finalReply = textBlock ? textBlock.text : "(no response)";
         break;
       }
 
-      // Tool use requested
       if (response.stop_reason === "tool_use") {
         const toolUseBlocks = response.content.filter(b => b.type === "tool_use");
+
         const toolResults = await Promise.all(
           toolUseBlocks.map(async (block) => {
             const result = await runCensusTool(block.input);
+            // Safely serialize — catch any unexpected stringify failure
+            let content;
+            try {
+              content = JSON.stringify(result);
+            } catch {
+              content = JSON.stringify({ error: "Failed to serialize tool result." });
+            }
             return {
               type: "tool_result",
               tool_use_id: block.id,
-              content: JSON.stringify(result),
+              content,
             };
           })
         );
 
-        // Append assistant's tool-call turn + tool results, then loop
         currentMessages = [
           ...currentMessages,
           { role: "assistant", content: response.content },
@@ -204,7 +252,8 @@ export default async function handler(req, res) {
         continue;
       }
 
-      // Unexpected stop reason
+      // Unexpected stop reason — bail out gracefully
+      console.warn("[chat] Unexpected stop_reason:", response.stop_reason);
       break;
     }
 
@@ -214,7 +263,9 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ reply: finalReply });
   } catch (err) {
-    console.error("Chat API error:", err);
-    return res.status(500).json({ error: err.message || "Internal server error." });
+    console.error("[chat] API error:", err);
+    const message = err?.message || "Internal server error.";
+    const status = message.includes("timed out") ? 504 : 500;
+    return res.status(status).json({ error: message });
   }
 }

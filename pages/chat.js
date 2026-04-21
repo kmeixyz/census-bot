@@ -6,6 +6,20 @@ import styles from "../styles/Chat.module.css";
 
 const MAX_EXCHANGES = 10; // 10 user + 10 assistant = 20 messages
 
+// Render minimal markdown: **bold** and line breaks
+function renderMarkdown(text) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return <strong key={i}>{part.slice(2, -2)}</strong>;
+    }
+    // Preserve newlines
+    return part.split("\n").map((line, j, arr) => (
+      <span key={`${i}-${j}`}>{line}{j < arr.length - 1 ? <br /> : null}</span>
+    ));
+  });
+}
+
 const SUGGESTIONS = [
   "What's the median rent in Chicago, Illinois?",
   "Compare population of Austin and Dallas, Texas.",
@@ -180,7 +194,7 @@ export default function ChatPage() {
                       ? `${styles.bubbleAssistant} ${styles.bubbleError}`
                       : styles.bubbleAssistant
                   }`}>
-                    {msg.content}
+                    {msg.role === "assistant" ? renderMarkdown(msg.content) : msg.content}
                   </div>
                 </div>
               ))}
