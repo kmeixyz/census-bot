@@ -196,6 +196,37 @@ function TypingIndicator() {
   );
 }
 
+// ── More Info (methodology + caveats) ────────────────────────────────────────
+function MoreInfo({ methodology, caveats }) {
+  const [open, setOpen] = useState(false);
+  if (!methodology && !caveats) return null;
+
+  return (
+    <div className={styles.moreInfoWrap}>
+      {methodology && (
+        <p className={styles.methodology}>{methodology}</p>
+      )}
+      {caveats && (
+        <>
+          <button
+            type="button"
+            className={styles.moreInfoBtn}
+            onClick={() => setOpen(o => !o)}
+            aria-expanded={open}
+          >
+            {open ? "Hide details ▲" : "More info ▼"}
+          </button>
+          {open && (
+            <div className={styles.caveatsBox}>
+              {renderMarkdown(caveats)}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── Component ────────────────────────────────────────────────────────────────
 export default function ChatPage() {
   const [mode, setMode] = useState(null); // null = show mode picker
@@ -244,7 +275,12 @@ export default function ChatPage() {
       if (!res.ok) {
         setMessages(prev => [...prev, { role: "assistant", content: data.error || "Something went wrong.", error: true }]);
       } else {
-        setMessages(prev => [...prev, { role: "assistant", content: data.reply }]);
+        setMessages(prev => [...prev, {
+          role: "assistant",
+          content: data.reply,
+          methodology: data.methodology || null,
+          caveats: data.caveats || null,
+        }]);
       }
     } catch {
       setMessages(prev => [...prev, { role: "assistant", content: "Network error — check your connection.", error: true }]);
@@ -356,6 +392,9 @@ export default function ChatPage() {
                           : styles.bubbleAssistant
                       }`}>
                         {msg.role === "assistant" ? renderMarkdown(msg.content) : msg.content}
+                      {msg.role === "assistant" && (msg.methodology || msg.caveats) && (
+                        <MoreInfo methodology={msg.methodology} caveats={msg.caveats} />
+                      )}
                       </div>
                     </div>
                   ))}

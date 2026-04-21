@@ -66,6 +66,10 @@ const CONDITIONAL_SKILLS = [
     file: path.join(SKILLS_DIR, "acs-api-builder", "SKILL.md"),
     keywords: ["api", "url", "endpoint", "fetch", "request", "query string", "build", "construct", "http"],
   },
+  {
+    file: path.join(SKILLS_DIR, "acs-temporal-caveats", "SKILL.md"),
+    keywords: ["trend", "over time", "change", "since", "compared to", "grew", "growth", "decline", "increase", "decrease", "historical", "year", "years", "2010", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "boundary", "annex", "tract", "zcta", "zip", "metro area", "cbsa", "before and after", "pre-covid", "post-covid", "race", "multiracial"],
+  },
 ];
 
 function loadConditionalSkills(userMessage) {
@@ -141,12 +145,29 @@ const MODE_SKILLS = {
     path.join(SKILLS_DIR, "acs-data-interpreter", "SKILL.md"),
     path.join(SKILLS_DIR, "acs-table-selector", "SKILL.md"),
     path.join(SKILLS_DIR, "acs-geography", "SKILL.md"),
+    path.join(SKILLS_DIR, "acs-temporal-caveats", "SKILL.md"),
   ],
 };
 
 const MODE_PROMPTS = {
   learn: `\nMode: LEARN. The user wants to understand ACS data concepts. Focus on clear explanations. Use the tool only if they ask about a specific place. Prefer plain-language teaching over raw numbers.`,
-  statistic: `\nMode: FIND STATISTIC. The user wants a specific number. Use the tool immediately when they name a metric and place. Be precise and cite the source.`,
+  statistic: `\nMode: FIND STATISTIC. The user wants a specific number. Use the tool immediately when they name a metric and place. Be precise and cite the source.
+
+After answering, ALWAYS append these two sections using exact markers:
+
+[methodology]
+One sentence on how this statistic is calculated and what population/universe it covers. Example: "Median gross rent from ACS 5-Year Estimates (2022), Table B25064. Covers renter-occupied housing units paying cash rent."
+
+[caveats]
+Bullet list of 1-3 relevant data quirks. Only include caveats that actually apply to this specific query. Examples:
+- Margin of error: ±$43 (90% confidence)
+- Covers renter-occupied units only, not homeowners
+- City boundaries may have changed due to annexation since 2010
+- 2020 data uses experimental estimates with lower response rates
+
+If no meaningful caveats apply, write: "No major caveats for this query."
+
+Always include both [methodology] and [caveats] sections, even for simple queries.`,
   visualize: `\nMode: VISUALIZATION. The user wants chart/visualization guidance. Suggest specific chart types, axis labels, and which ACS tables and variables to use. If they name a place, look up real data to ground your suggestions.`,
 };
 
@@ -319,6 +340,20 @@ export default async function handler(req, res) {
       } catch (fallbackErr) {
         console.error("[chat] Fallback call failed:", fallbackErr);
         finalReply = "I wasn't able to retrieve that data right now. Please try again.";
+      }
+    }
+
+    // For statistic mode, parse structured sections from the reply
+    if (mode === "statistic" && finalReply) {
+      const methMatch = finalReply.match(/\[methodology\]\s*([\s\S]*?)(?=\[caveats\]|$)/);
+      const cavMatch = finalReply.match(/\[caveats\]\s*([\s\S]*)$/);
+
+      if (methMatch || cavMatch) {
+        // Strip markers from the main reply
+        const answer = finalReply.replace(/\[methodology\][\s\S]*$/, "").trim();
+        const methodology = methMatch ? methMatch[1].trim() : null;
+        const caveats = cavMatch ? cavMatch[1].trim() : null;
+        return res.status(200).json({ reply: answer, methodology, caveats });
       }
     }
 
