@@ -107,20 +107,22 @@ const CENSUS_TOOL = {
   },
 };
 
-const BASE_SYSTEM_PROMPT = `You are a friendly, knowledgeable U.S. Census data assistant built into CensusBot.
-You help users understand American Community Survey (ACS) data — things like income, rent, population, poverty rates, employment, age, and commute times for cities across the United States.
+const BASE_SYSTEM_PROMPT = `You are a knowledgeable U.S. Census data assistant built into CensusBot.
+You help users understand American Community Survey (ACS) data — income, rent, population, poverty rates, employment, age, and commute times for U.S. cities.
 
-You have access to a live Census data lookup tool. Use it proactively when a user asks about specific metrics for a city/state — don't just describe what you could look up, actually call the tool and return the real number.
+You have access to a live Census data lookup tool. Use it proactively when a user asks about specific metrics for a city/state — don't describe what you could look up, just call the tool and return the real number.
 
-Available metrics you can look up: ${QUERY_TYPES.join(", ")}.
+Available metrics: ${QUERY_TYPES.join(", ")}.
 
-Guidelines:
-- Be concise and direct. Lead with the data, then add brief context if helpful.
-- When you retrieve live data, present the value clearly and mention it comes from ACS 5-Year Estimates.
-- If a metric or location isn't supported, suggest the closest available option.
-- You can look up multiple metrics in one response if the user asks for several things.
+Formatting rules (strictly follow these):
+- This is a chat UI. Never use --- dividers, ## headers, or ### headers.
+- Use **bold** only for key numbers or metric names. No bold mid-sentence for decoration.
+- Use plain line breaks between points. Short bullet lists are fine for multiple items.
+- Keep responses tight: 2–4 sentences max for single-metric answers. No preamble, no sign-off.
+- Lead with the number, then one sentence of context if useful. That's it.
 - Don't make up numbers — always use the tool for specific statistics.
-- For general questions about what ACS data means, answer from your knowledge.`;
+- If a metric or location isn't supported, say so in one sentence and suggest the closest option.
+- If a tool call returns an error, do NOT retry it. Acknowledge the issue briefly and answer from your general knowledge instead.`;
 
 function buildSystemPrompt(userMessage) {
   const alwaysOn = loadAlwaysOnSkills();
@@ -217,9 +219,14 @@ export default async function handler(req, res) {
 
       const response = await Promise.race([responsePromise, timeoutPromise]);
 
-      if (response.stop_reason === "end_turn") {
+      console.log(`[chat] loop iteration ${i}, stop_reason=${response.stop_reason}, content_types=${response.content.map(b => b.type).join(",")}`);
+
+      if (response.stop_reason === "end_turn" || response.stop_reason === "max_tokens") {
         const textBlock = response.content.find(b => b.type === "text");
-        finalReply = textBlock ? textBlock.text : "(no response)";
+        finalReply = textBlock ? textBlock.text : null;
+        if (!finalReply && response.stop_reason === "max_tokens") {
+          finalReply = "Response was cut off — try asking a more specific question.";
+        }
         break;
       }
 
@@ -258,7 +265,25 @@ export default async function handler(req, res) {
     }
 
     if (!finalReply) {
-      return res.status(500).json({ error: "Claude did not produce a final response." });
+      // Loop exhausted without a text reply — likely repeated tool failures.
+      // Make one final call with no tools so Claude must write a text response.
+      console.warn("[chat] Loop exhausted without text reply — retrying with no tools.");
+      try {
+        const latestUserMsg = currentMessages
+          .filter(m => m.role === "user" && typeof m.content === "string")
+          .slice(-1)[0]?.content || "";
+        const fallbackResponse = await client.messages.create({
+          model: MODEL,
+          max_tokens: MAX_TOKENS,
+          system: buildSystemPrompt(latestUserMsg) + "\n\nNote: live data lookup is unavailable. Answer from your general knowledge.",
+          messages,  // use original messages, not the tool-augmented ones
+        });
+        const textBlock = fallbackResponse.content.find(b => b.type === "text");
+        finalReply = textBlock?.text || "I wasn't able to retrieve that data right now. Please try again.";
+      } catch (fallbackErr) {
+        console.error("[chat] Fallback call failed:", fallbackErr);
+        finalReply = "I wasn't able to retrieve that data right now. Please try again.";
+      }
     }
 
     return res.status(200).json({ reply: finalReply });

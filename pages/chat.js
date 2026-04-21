@@ -6,18 +6,45 @@ import styles from "../styles/Chat.module.css";
 
 const MAX_EXCHANGES = 10; // 10 user + 10 assistant = 20 messages
 
-// Render minimal markdown: **bold** and line breaks
+// Render markdown: **bold**, # headers, --- dividers, and line breaks
 function renderMarkdown(text) {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith("**") && part.endsWith("**")) {
-      return <strong key={i}>{part.slice(2, -2)}</strong>;
+  const lines = text.split("\n");
+  const elements = [];
+
+  lines.forEach((line, li) => {
+    // Horizontal rule
+    if (/^---+$/.test(line.trim())) {
+      elements.push(<hr key={li} style={{ border: "none", borderTop: "1px solid var(--border)", margin: "0.5rem 0" }} />);
+      return;
     }
-    // Preserve newlines
-    return part.split("\n").map((line, j, arr) => (
-      <span key={`${i}-${j}`}>{line}{j < arr.length - 1 ? <br /> : null}</span>
-    ));
+    // Headers
+    const headerMatch = line.match(/^(#{1,3})\s+(.+)/);
+    if (headerMatch) {
+      const level = headerMatch[1].length;
+      const Tag = `h${Math.min(level + 2, 6)}`; // h3–h5 to stay visually subtle
+      elements.push(
+        <Tag key={li} style={{ fontWeight: 700, fontSize: level === 1 ? "1rem" : "0.95rem", margin: "0.4rem 0 0.1rem", color: "var(--text)" }}>
+          {headerMatch[2]}
+        </Tag>
+      );
+      return;
+    }
+    // Normal line — parse **bold** inline
+    const parts = line.split(/(\*\*[^*]+\*\*)/g);
+    const rendered = parts.map((part, pi) => {
+      if (part.startsWith("**") && part.endsWith("**")) {
+        return <strong key={pi}>{part.slice(2, -2)}</strong>;
+      }
+      return <span key={pi}>{part}</span>;
+    });
+    elements.push(
+      <span key={li} style={{ display: "block" }}>
+        {rendered}
+      </span>
+    );
   });
+
+  return elements;
 }
 
 const SUGGESTIONS = [
