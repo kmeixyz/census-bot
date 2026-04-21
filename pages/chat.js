@@ -4,58 +4,161 @@ import Head from "next/head";
 import SiteLayout from "../components/SiteLayout";
 import styles from "../styles/Chat.module.css";
 
-const MAX_EXCHANGES = 10; // 10 user + 10 assistant = 20 messages
+const MAX_EXCHANGES = 10;
 
-// Render markdown: **bold**, # headers, --- dividers, and line breaks
+// ── Modes ────────────────────────────────────────────────────────────────────
+const MODES = [
+  {
+    id: "learn",
+    label: "Learn about ACS",
+    icon: "",
+    description: "Understand what ACS data is, how it works, and what it covers.",
+    placeholder: "What is the American Community Survey?",
+    suggestions: [
+      "What does ACS 5-year data mean?",
+      "What's the difference between ACS and the Census?",
+      "How reliable is ACS data for small cities?",
+      "What kind of data does ACS track?",
+    ],
+  },
+  {
+    id: "statistic",
+    label: "Find a Statistic",
+    icon: "",
+    description: "Look up live Census data for any U.S. city.",
+    placeholder: "What's the median rent in Chicago, Illinois?",
+    suggestions: [
+      "Median household income in Seattle, Washington?",
+      "What is the poverty rate in Detroit, Michigan?",
+      "Compare population of Austin and Dallas, Texas.",
+      "Unemployment rate in Miami, Florida?",
+    ],
+  },
+  {
+    id: "visualize",
+    label: "Create Visualization",
+    icon: "",
+    description: "Get chart suggestions and data breakdowns for visual storytelling.",
+    placeholder: "Show rent trends for California cities…",
+    suggestions: [
+      "How should I visualize income inequality in Texas?",
+      "Best chart type for comparing rent across 5 cities?",
+      "Help me plan a visualization of poverty trends.",
+      "What data would I need for a migration map?",
+    ],
+  },
+];
+
+// ── Markdown renderer ────────────────────────────────────────────────────────
+function parseInline(text) {
+  // Parse **bold**, *italic*, and `code` inline
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**"))
+      return <strong key={i}>{part.slice(2, -2)}</strong>;
+    if (part.startsWith("*") && part.endsWith("*") && part.length > 2)
+      return <em key={i}>{part.slice(1, -1)}</em>;
+    if (part.startsWith("`") && part.endsWith("`"))
+      return <code key={i} className={styles.inlineCode}>{part.slice(1, -1)}</code>;
+    return <span key={i}>{part}</span>;
+  });
+}
+
 function renderMarkdown(text) {
   const lines = text.split("\n");
   const elements = [];
+  let tableRows = [];
+  let inTable = false;
+
+  function flushTable() {
+    if (tableRows.length === 0) return;
+    const headerCells = tableRows[0];
+    // Skip separator row (row 1 if it's all dashes)
+    const bodyStart = tableRows.length > 1 && tableRows[1].every(c => /^[-:|]+$/.test(c.trim())) ? 2 : 1;
+    const bodyRows = tableRows.slice(bodyStart);
+
+    elements.push(
+      <div key={`tbl-${elements.length}`} className={styles.tableWrap}>
+        <table className={styles.table}>
+          <thead>
+            <tr>{headerCells.map((c, i) => <th key={i}>{parseInline(c.trim())}</th>)}</tr>
+          </thead>
+          <tbody>
+            {bodyRows.map((row, ri) => (
+              <tr key={ri}>{row.map((c, ci) => <td key={ci}>{parseInline(c.trim())}</td>)}</tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+    tableRows = [];
+    inTable = false;
+  }
 
   lines.forEach((line, li) => {
+    const trimmed = line.trim();
+
+    // Table row detection: | col | col |
+    if (/^\|(.+\|)+$/.test(trimmed)) {
+      const cells = trimmed.split("|").slice(1, -1);
+      tableRows.push(cells);
+      inTable = true;
+      return;
+    } else if (inTable) {
+      flushTable();
+    }
+
     // Horizontal rule
-    if (/^---+$/.test(line.trim())) {
+    if (/^---+$/.test(trimmed)) {
       elements.push(<hr key={li} style={{ border: "none", borderTop: "1px solid var(--border)", margin: "0.5rem 0" }} />);
       return;
     }
+
     // Headers
-    const headerMatch = line.match(/^(#{1,3})\s+(.+)/);
+    const headerMatch = trimmed.match(/^(#{1,3})\s+(.+)/);
     if (headerMatch) {
       const level = headerMatch[1].length;
-      const Tag = `h${Math.min(level + 2, 6)}`; // h3–h5 to stay visually subtle
       elements.push(
-        <Tag key={li} style={{ fontWeight: 700, fontSize: level === 1 ? "1rem" : "0.95rem", margin: "0.4rem 0 0.1rem", color: "var(--text)" }}>
-          {headerMatch[2]}
-        </Tag>
+        <div key={li} className={styles[`h${level}`] || styles.h3}>
+          {parseInline(headerMatch[2])}
+        </div>
       );
       return;
     }
-    // Normal line — parse **bold** inline
-    const parts = line.split(/(\*\*[^*]+\*\*)/g);
-    const rendered = parts.map((part, pi) => {
-      if (part.startsWith("**") && part.endsWith("**")) {
-        return <strong key={pi}>{part.slice(2, -2)}</strong>;
-      }
-      return <span key={pi}>{part}</span>;
-    });
+
+    // Bullet list items: - or * or numbered (1.)
+    const bulletMatch = trimmed.match(/^(?:[-*]|\d+\.)\s+(.+)/);
+    if (bulletMatch) {
+      elements.push(
+        <div key={li} className={styles.listItem}>
+          <span className={styles.bullet}>•</span>
+          <span>{parseInline(bulletMatch[1])}</span>
+        </div>
+      );
+      return;
+    }
+
+    // Empty line
+    if (trimmed === "") {
+      elements.push(<div key={li} style={{ height: "0.35rem" }} />);
+      return;
+    }
+
+    // Normal line
     elements.push(
       <span key={li} style={{ display: "block" }}>
-        {rendered}
+        {parseInline(line)}
       </span>
     );
   });
 
+  // Flush any remaining table
+  if (inTable) flushTable();
+
   return elements;
 }
 
-const SUGGESTIONS = [
-  "What's the median rent in Chicago, Illinois?",
-  "Compare population of Austin and Dallas, Texas.",
-  "What is the poverty rate in Detroit, Michigan?",
-  "What does ACS 5-year data mean?",
-  "Median household income in Seattle, Washington?",
-  "Unemployment rate in Miami, Florida?",
-];
-
+// ── Icons ────────────────────────────────────────────────────────────────────
 function SendIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
@@ -93,7 +196,9 @@ function TypingIndicator() {
   );
 }
 
+// ── Component ────────────────────────────────────────────────────────────────
 export default function ChatPage() {
+  const [mode, setMode] = useState(null); // null = show mode picker
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -101,15 +206,12 @@ export default function ChatPage() {
   const textareaRef = useRef(null);
 
   const atLimit = messages.length >= MAX_EXCHANGES * 2;
+  const activeMode = MODES.find(m => m.id === mode);
 
-  // Auto-scroll to bottom
   useEffect(() => {
-    if (listRef.current) {
-      listRef.current.scrollTop = listRef.current.scrollHeight;
-    }
+    if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
   }, [messages, loading]);
 
-  // Auto-resize textarea
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
@@ -135,6 +237,7 @@ export default function ChatPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: next.map(m => ({ role: m.role, content: m.content })),
+          mode: mode || "statistic",
         }),
       });
       const data = await res.json();
@@ -159,9 +262,16 @@ export default function ChatPage() {
   }
 
   function clearChat() {
+    setMode(null);
     setMessages([]);
     setInput("");
-    textareaRef.current?.focus();
+  }
+
+  function selectMode(modeId) {
+    setMode(modeId);
+    setMessages([]);
+    setInput("");
+    setTimeout(() => textareaRef.current?.focus(), 100);
   }
 
   return (
@@ -179,91 +289,116 @@ export default function ChatPage() {
             <div className={styles.headerLeft}>
               <h1 className={styles.title}>Ask a Question</h1>
               <p className={styles.subtitle}>
-                Ask anything about U.S. Census data — I&apos;ll look up live numbers for you.
+                {activeMode ? activeMode.description : "Choose how you want to explore Census data."}
               </p>
             </div>
-            {messages.length > 0 && (
+            {(mode !== null) && (
               <button type="button" className={styles.clearBtn} onClick={clearChat}>
-                Clear chat
+                ← Start over
               </button>
             )}
           </div>
 
-          {/* Limit notice */}
-          <div className={styles.limitNotice}>
-            💬 Conversations are limited to 10 exchanges. Click <strong>Clear chat</strong> to start a new one.
-          </div>
-
-          {/* Message list / empty state */}
-          {messages.length === 0 && !loading ? (
-            <div className={styles.emptyState}>
-              <div className={styles.emptyIcon}>💬</div>
-              <p className={styles.emptyText}>
-                Ask me about income, rent, population, poverty rates, and more for any U.S. city.
-              </p>
-              <div className={styles.suggestions}>
-                {SUGGESTIONS.map(s => (
-                  <button key={s} type="button" className={styles.suggestion} onClick={() => sendMessage(s)}>
-                    {s}
+          {/* Mode picker — shown when no mode selected */}
+          {mode === null ? (
+            <div className={styles.modePicker}>
+              <p className={styles.modePickerLabel}>What would you like to do?</p>
+              <div className={styles.modeGrid}>
+                {MODES.map(m => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    className={styles.modeCard}
+                    onClick={() => selectMode(m.id)}
+                  >
+                    {m.icon && <span className={styles.modeIcon}>{m.icon}</span>}
+                    <span className={styles.modeLabel}>{m.label}</span>
+                    <span className={styles.modeDesc}>{m.description}</span>
                   </button>
                 ))}
               </div>
             </div>
           ) : (
-            <div className={styles.messageList} ref={listRef}>
-              {messages.map((msg, i) => (
-                <div key={i} className={`${styles.messageRow} ${msg.role === "user" ? styles.messageRowUser : ""}`}>
-                  {msg.role === "assistant" ? <BotAvatar /> : <UserAvatar />}
-                  <div className={`${styles.bubble} ${
-                    msg.role === "user"
-                      ? styles.bubbleUser
-                      : msg.error
-                      ? `${styles.bubbleAssistant} ${styles.bubbleError}`
-                      : styles.bubbleAssistant
-                  }`}>
-                    {msg.role === "assistant" ? renderMarkdown(msg.content) : msg.content}
+            <>
+              {/* Active mode badge */}
+              <div className={styles.modeBadge}>
+                <span>{activeMode.icon}</span>
+                <span>{activeMode.label}</span>
+              </div>
+
+              {/* Limit notice */}
+              <div className={styles.limitNotice}>
+                💬 Conversations limited to 10 exchanges. Click <strong>Start over</strong> to reset.
+              </div>
+
+              {/* Message list / suggestions */}
+              {messages.length === 0 && !loading ? (
+                <div className={styles.emptyState}>
+                  <p className={styles.emptyText}>{activeMode.description}</p>
+                  <div className={styles.suggestions}>
+                    {activeMode.suggestions.map(s => (
+                      <button key={s} type="button" className={styles.suggestion} onClick={() => sendMessage(s)}>
+                        {s}
+                      </button>
+                    ))}
                   </div>
                 </div>
-              ))}
-              {loading && <TypingIndicator />}
-            </div>
-          )}
-
-          {/* Input area */}
-          <div className={styles.inputArea}>
-            {atLimit ? (
-              <div className={styles.limitReached}>
-                Conversation limit reached (10 exchanges). Click <strong>Clear chat</strong> to start a new one.
-              </div>
-            ) : (
-              <>
-                <div className={styles.inputRow}>
-                  <textarea
-                    ref={textareaRef}
-                    className={styles.textarea}
-                    placeholder="Ask about any U.S. city or Census metric…"
-                    value={input}
-                    rows={1}
-                    onChange={e => setInput(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    disabled={loading}
-                    aria-label="Chat input"
-                  />
-                  <button
-                    type="button"
-                    className={styles.sendBtn}
-                    onClick={() => sendMessage()}
-                    disabled={!input.trim() || loading}
-                    aria-label="Send message"
-                  >
-                    <SendIcon />
-                  </button>
+              ) : (
+                <div className={styles.messageList} ref={listRef}>
+                  {messages.map((msg, i) => (
+                    <div key={i} className={`${styles.messageRow} ${msg.role === "user" ? styles.messageRowUser : ""}`}>
+                      {msg.role === "assistant" ? <BotAvatar /> : <UserAvatar />}
+                      <div className={`${styles.bubble} ${
+                        msg.role === "user"
+                          ? styles.bubbleUser
+                          : msg.error
+                          ? `${styles.bubbleAssistant} ${styles.bubbleError}`
+                          : styles.bubbleAssistant
+                      }`}>
+                        {msg.role === "assistant" ? renderMarkdown(msg.content) : msg.content}
+                      </div>
+                    </div>
+                  ))}
+                  {loading && <TypingIndicator />}
                 </div>
-                <p className={styles.inputHint}>Press Enter to send · Shift+Enter for new line</p>
-              </>
-            )}
-          </div>
+              )}
 
+              {/* Input area */}
+              <div className={styles.inputArea}>
+                {atLimit ? (
+                  <div className={styles.limitReached}>
+                    Conversation limit reached. Click <strong>Start over</strong> to begin a new chat.
+                  </div>
+                ) : (
+                  <>
+                    <div className={styles.inputRow}>
+                      <textarea
+                        ref={textareaRef}
+                        className={styles.textarea}
+                        placeholder={activeMode.placeholder}
+                        value={input}
+                        rows={1}
+                        onChange={e => setInput(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        disabled={loading}
+                        aria-label="Chat input"
+                      />
+                      <button
+                        type="button"
+                        className={styles.sendBtn}
+                        onClick={() => sendMessage()}
+                        disabled={!input.trim() || loading}
+                        aria-label="Send message"
+                      >
+                        <SendIcon />
+                      </button>
+                    </div>
+                    <p className={styles.inputHint}>Press Enter to send · Shift+Enter for new line</p>
+                  </>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </SiteLayout>
     </>

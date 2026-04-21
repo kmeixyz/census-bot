@@ -124,12 +124,48 @@ Formatting rules (strictly follow these):
 - If a metric or location isn't supported, say so in one sentence and suggest the closest option.
 - If a tool call returns an error, do NOT retry it. Acknowledge the issue briefly and answer from your general knowledge instead.`;
 
-function buildSystemPrompt(userMessage) {
+// ── Mode-specific skill routing ─────────────────────────────────────────────
+const MODE_SKILLS = {
+  learn: [
+    // Educational mode: general ACS knowledge, data interpretation
+    path.join(SKILLS_DIR, "acs-data-interpreter", "SKILL.md"),
+    path.join(SKILLS_DIR, "acs-table-selector", "SKILL.md"),
+  ],
+  statistic: [
+    // Data lookup mode: geography, interpretation, conditional by keywords
+    path.join(SKILLS_DIR, "acs-data-interpreter", "SKILL.md"),
+    path.join(SKILLS_DIR, "acs-geography", "SKILL.md"),
+  ],
+  visualize: [
+    // Visualization mode: data interpretation + table selection for chart planning
+    path.join(SKILLS_DIR, "acs-data-interpreter", "SKILL.md"),
+    path.join(SKILLS_DIR, "acs-table-selector", "SKILL.md"),
+    path.join(SKILLS_DIR, "acs-geography", "SKILL.md"),
+  ],
+};
+
+const MODE_PROMPTS = {
+  learn: `\nMode: LEARN. The user wants to understand ACS data concepts. Focus on clear explanations. Use the tool only if they ask about a specific place. Prefer plain-language teaching over raw numbers.`,
+  statistic: `\nMode: FIND STATISTIC. The user wants a specific number. Use the tool immediately when they name a metric and place. Be precise and cite the source.`,
+  visualize: `\nMode: VISUALIZATION. The user wants chart/visualization guidance. Suggest specific chart types, axis labels, and which ACS tables and variables to use. If they name a place, look up real data to ground your suggestions.`,
+};
+
+function buildSystemPrompt(userMessage, mode) {
   const alwaysOn = loadAlwaysOnSkills();
+
+  // Load mode-specific skills
+  const modeFiles = MODE_SKILLS[mode] || MODE_SKILLS.statistic;
+  const modeSkills = modeFiles.map(readSkillCached).filter(Boolean);
+
+  // Also load keyword-conditional skills
   const conditional = loadConditionalSkills(userMessage);
-  const parts = [BASE_SYSTEM_PROMPT];
+
+  // Deduplicate (mode skills may overlap with conditional)
+  const allSkills = [...new Set([...modeSkills, ...conditional])];
+
+  const parts = [BASE_SYSTEM_PROMPT + (MODE_PROMPTS[mode] || "")];
   if (alwaysOn.length > 0) parts.push("---\n" + alwaysOn.join("\n\n---\n"));
-  if (conditional.length > 0) parts.push("---\n" + conditional.join("\n\n---\n"));
+  if (allSkills.length > 0) parts.push("---\n" + allSkills.join("\n\n---\n"));
   const prompt = parts.join("\n\n");
 
   if (prompt.length > SYSTEM_PROMPT_WARN_CHARS) {
@@ -176,7 +212,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { messages } = req.body;
+  const { messages, mode } = req.body;
 
   if (!Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: "No messages provided." });
@@ -202,7 +238,7 @@ export default async function handler(req, res) {
         .filter(m => m.role === "user" && typeof m.content === "string")
         .slice(-1)[0]?.content || "";
 
-      const systemPrompt = buildSystemPrompt(latestUserMsg);
+      const systemPrompt = buildSystemPrompt(latestUserMsg, mode);
 
       // Race the Claude call against the remaining timeout budget
       const responsePromise = client.messages.create({
@@ -275,7 +311,7 @@ export default async function handler(req, res) {
         const fallbackResponse = await client.messages.create({
           model: MODEL,
           max_tokens: MAX_TOKENS,
-          system: buildSystemPrompt(latestUserMsg) + "\n\nNote: live data lookup is unavailable. Answer from your general knowledge.",
+          system: buildSystemPrompt(latestUserMsg, mode) + "\n\nNote: live data lookup is unavailable. Answer from your general knowledge.",
           messages,  // use original messages, not the tool-augmented ones
         });
         const textBlock = fallbackResponse.content.find(b => b.type === "text");

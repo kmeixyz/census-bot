@@ -3,12 +3,6 @@
 .chatPage {
   display: flex;
   flex-direction: column;
-  /*
-   * SiteLayout .main has overflow-x:clip which computes overflow-y to auto,
-   * making .main a scroll container. We must fit entirely within .main without
-   * overflowing, so subtract: nav (~3rem) + main top padding (2.5rem) +
-   * main bottom padding (4rem) + small buffer (1rem) = 10.5rem
-   */
   height: calc(100vh - 10.5rem);
   max-height: calc(100vh - 10.5rem);
   padding: 0;
@@ -54,12 +48,93 @@
   font-weight: 600;
   cursor: pointer;
   transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+  white-space: nowrap;
 }
 
 .clearBtn:hover {
   color: var(--text);
   border-color: var(--border-hover);
   background: var(--surface-2);
+}
+
+/* ── Mode picker ────────────────────────────────────────── */
+.modePicker {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 1rem 0 2rem;
+}
+
+.modePickerLabel {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.modeGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.85rem;
+  width: 100%;
+  max-width: 600px;
+}
+
+.modeCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 1.4rem 1rem;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, transform 0.18s ease;
+  text-align: center;
+}
+
+.modeCard:hover {
+  border-color: var(--accent);
+  background: var(--surface-2);
+  box-shadow: 0 0 18px var(--accent-glow);
+  transform: translateY(-2px);
+}
+
+.modeIcon {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.modeLabel {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.modeDesc {
+  font-size: 0.73rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+/* ── Mode badge ─────────────────────────────────────────── */
+.modeBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+  flex-shrink: 0;
+  width: fit-content;
 }
 
 /* ── Limit notice ───────────────────────────────────────── */
@@ -150,7 +225,7 @@
 /* ── Individual messages ─────────────────────────────────── */
 .messageRow {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 0.6rem;
 }
 
@@ -167,7 +242,7 @@
   justify-content: center;
   font-size: 0.85rem;
   flex-shrink: 0;
-  margin-bottom: 2px;
+  margin-top: 2px;
 }
 
 .avatarAssistant {
@@ -194,14 +269,14 @@
   background: var(--surface);
   border: 1px solid var(--border);
   color: var(--text);
-  border-bottom-left-radius: 4px;
+  border-top-left-radius: 4px;
 }
 
 .bubbleUser {
   background: linear-gradient(135deg, #1e3a5f 0%, #1a2f50 100%);
   border: 1px solid rgba(77, 184, 255, 0.2);
   color: var(--text);
-  border-bottom-right-radius: 4px;
+  border-top-right-radius: 4px;
 }
 
 :global(html[data-theme="light"]) .bubbleUser {
@@ -216,10 +291,81 @@
   color: var(--error);
 }
 
+/* ── Markdown elements inside bubbles ────────────────────── */
+.h1 { font-weight: 700; font-size: 1.02rem; margin: 0.5rem 0 0.15rem; color: var(--text); }
+.h2 { font-weight: 700; font-size: 0.96rem; margin: 0.45rem 0 0.1rem; color: var(--text); }
+.h3 { font-weight: 700; font-size: 0.92rem; margin: 0.4rem 0 0.1rem; color: var(--text); }
+
+.listItem {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.1rem 0;
+}
+
+.bullet {
+  color: var(--accent);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.inlineCode {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.1rem 0.35rem;
+  font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+  font-size: 0.83em;
+  color: var(--accent);
+}
+
+/* ── Tables ──────────────────────────────────────────────── */
+.tableWrap {
+  overflow-x: auto;
+  margin: 0.4rem 0;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.table th {
+  text-align: left;
+  padding: 0.45rem 0.65rem;
+  font-weight: 700;
+  background: var(--surface-2);
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 0.4rem 0.65rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.table tbody tr:hover {
+  background: rgba(77, 184, 255, 0.04);
+}
+
+:global(html[data-theme="light"]) .table tbody tr:hover {
+  background: rgba(45, 55, 72, 0.03);
+}
+
 /* ── Typing indicator ────────────────────────────────────── */
 .typingRow {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 0.6rem;
 }
 
@@ -227,7 +373,7 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 16px;
-  border-bottom-left-radius: 4px;
+  border-top-left-radius: 4px;
   padding: 0.75rem 1rem;
   display: flex;
   align-items: center;
@@ -342,9 +488,9 @@
   opacity: 0.7;
 }
 
+/* ── Responsive ──────────────────────────────────────────── */
 @media (max-width: 720px) {
   .chatPage {
-    /* nav wraps on mobile, adding more height */
     height: calc(100vh - 15rem);
     max-height: calc(100vh - 15rem);
   }
@@ -352,4 +498,19 @@
   .bubble {
     max-width: 88%;
   }
+
+  .modeGrid {
+    grid-template-columns: 1fr;
+    max-width: 360px;
+  }
+
+  .modeCard {
+    flex-direction: row;
+    gap: 0.75rem;
+    text-align: left;
+    padding: 1rem;
+  }
+
+  .modeIcon { font-size: 1.4rem; }
+  .modeDesc { display: none; }
 }
