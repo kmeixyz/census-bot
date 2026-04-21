@@ -3,8 +3,14 @@
 .chatPage {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 4.5rem);
-  max-height: calc(100vh - 4.5rem);
+  /*
+   * SiteLayout .main has overflow-x:clip which computes overflow-y to auto,
+   * making .main a scroll container. We must fit entirely within .main without
+   * overflowing, so subtract: nav (~3rem) + main top padding (2.5rem) +
+   * main bottom padding (4rem) + small buffer (1rem) = 10.5rem
+   */
+  height: calc(100vh - 10.5rem);
+  max-height: calc(100vh - 10.5rem);
   padding: 0;
   margin: 0 auto;
   max-width: 760px;
@@ -339,8 +345,9 @@
 
 @media (max-width: 720px) {
   .chatPage {
-    height: calc(100vh - 8rem);
-    max-height: calc(100vh - 8rem);
+    /* nav wraps on mobile, adding more height */
+    height: calc(100vh - 15rem);
+    max-height: calc(100vh - 15rem);
   }
 
   .bubble {

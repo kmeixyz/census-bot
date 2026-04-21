@@ -1,8 +1,10 @@
 // pages/chat.js — Ask Question: Claude-powered Census chatbot
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import Head from "next/head";
 import SiteLayout from "../components/SiteLayout";
 import styles from "../styles/Chat.module.css";
+
+const MAX_EXCHANGES = 10; // 10 user + 10 assistant = 20 messages
 
 const SUGGESTIONS = [
   "What's the median rent in Chicago, Illinois?",
@@ -23,9 +25,7 @@ function SendIcon() {
 }
 
 function BotAvatar() {
-  return (
-    <div className={`${styles.avatar} ${styles.avatarAssistant}`} aria-hidden>🤖</div>
-  );
+  return <div className={`${styles.avatar} ${styles.avatarAssistant}`} aria-hidden>🤖</div>;
 }
 
 function UserAvatar() {
@@ -53,14 +53,15 @@ function TypingIndicator() {
 }
 
 export default function ChatPage() {
-  // messages shape: { role: "user" | "assistant", content: string, error?: boolean }
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const listRef = useRef(null);
   const textareaRef = useRef(null);
 
-  // Auto-scroll to bottom when messages change
+  const atLimit = messages.length >= MAX_EXCHANGES * 2;
+
+  // Auto-scroll to bottom
   useEffect(() => {
     if (listRef.current) {
       listRef.current.scrollTop = listRef.current.scrollHeight;
@@ -75,53 +76,39 @@ export default function ChatPage() {
     el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
   }, [input]);
 
-  const MAX_EXCHANGES = 10; // 10 user + 10 assistant = 20 messages
+  async function sendMessage(overrideText) {
+    const text = (overrideText !== undefined ? overrideText : input).trim();
+    if (!text || loading || atLimit) return;
 
-  const sendMessage = useCallback(async (text) => {
-    const trimmed = (text || input).trim();
-    if (!trimmed || loading) return;
-    if (messages.length >= MAX_EXCHANGES * 2) return;
+    const userMsg = { role: "user", content: text };
+    const history = messages.slice(-(MAX_EXCHANGES * 2 - 1));
+    const next = [...history, userMsg];
 
-    const userMessage = { role: "user", content: trimmed };
-    // Keep last 10 exchanges (20 messages) before appending the new one
-    const trimmed = messages.slice(-19);
-    const newMessages = [...trimmed, userMessage];
-
-    setMessages(newMessages);
+    setMessages(next);
     setInput("");
     setLoading(true);
 
     try {
-      // Build the history for the API — only role + content
-      const apiMessages = newMessages.map(m => ({ role: m.role, content: m.content }));
-
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: apiMessages }),
+        body: JSON.stringify({
+          messages: next.map(m => ({ role: m.role, content: m.content })),
+        }),
       });
-
       const data = await res.json();
-
       if (!res.ok) {
-        setMessages(prev => [
-          ...prev,
-          { role: "assistant", content: data.error || "Something went wrong. Please try again.", error: true },
-        ]);
+        setMessages(prev => [...prev, { role: "assistant", content: data.error || "Something went wrong.", error: true }]);
       } else {
         setMessages(prev => [...prev, { role: "assistant", content: data.reply }]);
       }
     } catch {
-      setMessages(prev => [
-        ...prev,
-        { role: "assistant", content: "Network error — please check your connection and try again.", error: true },
-      ]);
+      setMessages(prev => [...prev, { role: "assistant", content: "Network error — check your connection.", error: true }]);
     } finally {
       setLoading(false);
-      // Re-focus textarea after response
       setTimeout(() => textareaRef.current?.focus(), 50);
     }
-  }, [input, messages, loading]);
+  }
 
   function handleKeyDown(e) {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -145,6 +132,7 @@ export default function ChatPage() {
       </Head>
       <SiteLayout>
         <div className={styles.chatPage}>
+
           {/* Header */}
           <div className={styles.header}>
             <div className={styles.headerLeft}>
@@ -162,7 +150,7 @@ export default function ChatPage() {
 
           {/* Limit notice */}
           <div className={styles.limitNotice}>
-            💬 Conversations are limited to 10 exchanges. Start a new chat anytime by clicking <strong>Clear chat</strong>.
+            💬 Conversations are limited to 10 exchanges. Click <strong>Clear chat</strong> to start a new one.
           </div>
 
           {/* Message list / empty state */}
@@ -174,12 +162,7 @@ export default function ChatPage() {
               </p>
               <div className={styles.suggestions}>
                 {SUGGESTIONS.map(s => (
-                  <button
-                    key={s}
-                    type="button"
-                    className={styles.suggestion}
-                    onClick={() => sendMessage(s)}
-                  >
+                  <button key={s} type="button" className={styles.suggestion} onClick={() => sendMessage(s)}>
                     {s}
                   </button>
                 ))}
@@ -188,20 +171,15 @@ export default function ChatPage() {
           ) : (
             <div className={styles.messageList} ref={listRef}>
               {messages.map((msg, i) => (
-                <div
-                  key={i}
-                  className={`${styles.messageRow} ${msg.role === "user" ? styles.messageRowUser : ""}`}
-                >
+                <div key={i} className={`${styles.messageRow} ${msg.role === "user" ? styles.messageRowUser : ""}`}>
                   {msg.role === "assistant" ? <BotAvatar /> : <UserAvatar />}
-                  <div
-                    className={`${styles.bubble} ${
-                      msg.role === "user"
-                        ? styles.bubbleUser
-                        : msg.error
-                        ? `${styles.bubbleAssistant} ${styles.bubbleError}`
-                        : styles.bubbleAssistant
-                    }`}
-                  >
+                  <div className={`${styles.bubble} ${
+                    msg.role === "user"
+                      ? styles.bubbleUser
+                      : msg.error
+                      ? `${styles.bubbleAssistant} ${styles.bubbleError}`
+                      : styles.bubbleAssistant
+                  }`}>
                     {msg.content}
                   </div>
                 </div>
@@ -212,7 +190,7 @@ export default function ChatPage() {
 
           {/* Input area */}
           <div className={styles.inputArea}>
-            {messages.length >= MAX_EXCHANGES * 2 ? (
+            {atLimit ? (
               <div className={styles.limitReached}>
                 Conversation limit reached (10 exchanges). Click <strong>Clear chat</strong> to start a new one.
               </div>
@@ -244,6 +222,7 @@ export default function ChatPage() {
               </>
             )}
           </div>
+
         </div>
       </SiteLayout>
     </>
