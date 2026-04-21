@@ -163,7 +163,7 @@ export default async function handler(req, res) {
 
     for (let i = 0; i < 5; i++) {
       // Build system prompt with general skill always + conditional skills for this message
-      const latestUserMsg = currentMessages.filter(m => m.role === "user").slice(-1)[0]?.content || "";
+      const latestUserMsg = currentMessages.filter(m => m.role === "user" && typeof m.content === "string").slice(-1)[0]?.content || "";
       const systemPrompt = buildSystemPrompt(latestUserMsg);
 
       const response = await client.messages.create({
