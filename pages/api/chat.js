@@ -9,7 +9,7 @@ import { QUERY_TYPES } from "../../lib/censusConstants";
 import fs from "fs";
 import path from "path";
 
-const MODEL = "claude-3-5-haiku-20241022";
+const MODEL = "claude-haiku-4-5";
 const MAX_TOKENS = 1024;
 const LOOP_TIMEOUT_MS = 25_000; // 25s total budget for the agentic loop
 // Warn if system prompt exceeds this many chars (~30k tokens ≈ 120k chars)
