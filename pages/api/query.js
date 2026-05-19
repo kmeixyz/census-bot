@@ -2,11 +2,16 @@
 // Serverless API route — runs on Vercel, never exposed to the browser.
 // The Census API key lives ONLY here via environment variables.
 
+export const config = { api: { bodyParser: { sizeLimit: "16kb" } } };
+
 import { parseQuery, formatValue } from "../../lib/censusTranslator";
 import { fetchCensusValue } from "../../lib/censusApi";
+import { makeRateLimiter } from "../../lib/rateLimit";
 import { computeRateIfNeeded } from "../../lib/censusRates";
 import { CURRENT_ACS_YEAR } from "../../lib/censusConstants";
 import { validateValue } from "../../lib/validateCensusData";
+
+const queryRateLimiter = makeRateLimiter({ windowMs: 60_000, max: 30 });
 
 export default async function handler(req, res) {
   // Only allow POST
@@ -14,10 +19,20 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  const rl = queryRateLimiter(req);
+  if (!rl.ok) {
+    res.setHeader("Retry-After", String(rl.retryAfter));
+    return res.status(429).json({ error: "Too many requests. Please wait a moment and try again." });
+  }
+
   const { query } = req.body;
 
   if (!query || typeof query !== "string" || query.trim().length === 0) {
     return res.status(400).json({ error: "Please provide a query." });
+  }
+
+  if (query.length > 500) {
+    return res.status(400).json({ error: "Query too long." });
   }
 
   // Parse the natural language query
@@ -56,8 +71,8 @@ export default async function handler(req, res) {
           });
         }
         rawValue = retryValue;
-      } catch (retryErr) {
-        return res.status(500).json({ error: retryErr.message || "Failed to fetch Census data after retry." });
+      } catch {
+        return res.status(500).json({ error: "Failed to fetch Census data. Please try again." });
       }
     }
 
@@ -76,8 +91,6 @@ export default async function handler(req, res) {
     });
   } catch (err) {
     console.error("Census fetch error:", err.message);
-    return res.status(500).json({
-      error: err.message || "Failed to fetch data from Census API.",
-    });
+    return res.status(500).json({ error: "Failed to fetch data. Please try again." });
   }
 }

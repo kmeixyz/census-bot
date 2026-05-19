@@ -59,8 +59,7 @@ export default async function handler(req, res) {
   try {
     const response = await fetch(url);
     if (!response.ok) {
-      const text = await response.text();
-      return res.status(502).json({ error: `Census API error ${response.status}: ${text}` });
+      return res.status(502).json({ error: "Census data service returned an error. Please try again." });
     }
     const data = await response.json();
     if (!Array.isArray(data) || data.length < 2) {
@@ -86,7 +85,7 @@ export default async function handler(req, res) {
     placeCache.set(stateFips, { fetchedAt: Date.now(), places });
 
     return res.status(200).json({ state: stateInput, places });
-  } catch (err) {
-    return res.status(500).json({ error: String(err?.message || "Failed to fetch places.") });
+  } catch {
+    return res.status(500).json({ error: "Failed to fetch places. Please try again." });
   }
 }

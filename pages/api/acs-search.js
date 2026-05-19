@@ -1,4 +1,6 @@
 // pages/api/acs-search.js — search endpoint for the /learn UI.
+
+export const config = { api: { bodyParser: { sizeLimit: "16kb" } } };
 // POST { query, topK? } → { results, total_chunks }
 // GET  ?action=docs    → { docs: [...] }     (used to render the doc directory)
 
@@ -28,10 +30,9 @@ export default async function handler(req, res) {
     return res.status(200).json(out);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
-    // Distinguish missing-index error so the UI can show a sensible message.
     const missingIndex = /index not found/i.test(msg);
     return res.status(missingIndex ? 503 : 500).json({
-      error: msg,
+      error: missingIndex ? "ACS documentation index has not been built yet." : "Search failed. Please try again.",
       code: missingIndex ? "INDEX_NOT_BUILT" : "INTERNAL",
     });
   }

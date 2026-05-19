@@ -2,7 +2,10 @@
 // Server-side Claude chatbot endpoint with Census API tool use.
 // ANTHROPIC_API_KEY is read from .env.local — never exposed to the browser.
 
+export const config = { api: { bodyParser: { sizeLimit: "128kb" } } };
+
 import Anthropic from "@anthropic-ai/sdk";
+import { makeRateLimiter } from "../../lib/rateLimit";
 import { parseQuery, parseVariableOnly, formatValue, detectAmbiguousMetric, STATE_FIPS } from "../../lib/censusTranslator";
 import { fetchCensusValue, fetchCensusValueWithMOEAndFallback } from "../../lib/censusApi";
 import { QUERY_TYPES, CURRENT_ACS_YEAR } from "../../lib/censusConstants";
@@ -1788,15 +1791,32 @@ async function handleStatisticModeFastPath(req, res, userMsg, mode, opts = {}) {
   });
 }
 
+// 20 requests per minute per IP — protects the Anthropic + Census API budget.
+const chatRateLimiter = makeRateLimiter({ windowMs: 60_000, max: 20 });
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  const rl = chatRateLimiter(req);
+  if (!rl.ok) {
+    res.setHeader("Retry-After", String(rl.retryAfter));
+    return res.status(429).json({ error: "Too many requests. Please wait a moment and try again." });
   }
 
   const { messages, mode, pickedGeo, pickedMetric } = req.body;
 
   if (!Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: "No messages provided." });
+  }
+
+  // Cap individual message content length to prevent oversized prompts.
+  const MAX_MSG_LENGTH = 4000;
+  for (const m of messages) {
+    if (typeof m.content === "string" && m.content.length > MAX_MSG_LENGTH) {
+      return res.status(400).json({ error: "Message content too long." });
+    }
   }
 
   if (!process.env.ANTHROPIC_API_KEY) {

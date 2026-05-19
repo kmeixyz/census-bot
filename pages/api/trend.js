@@ -1,4 +1,6 @@
 // pages/api/trend.js
+
+export const config = { api: { bodyParser: { sizeLimit: "32kb" } } };
 // Multi-year ACS trend fetcher. Accepts either:
 //   { location: "California" | "Cook County, IL" | "zip 90210" | "Austin, Texas" }
 //   { city, state }   (back-compat for the explore wizard)
@@ -15,6 +17,7 @@
 // without re-doing geo resolution client-side.
 
 import { fetchCensusVariable } from "../../lib/censusApi";
+import { makeRateLimiter } from "../../lib/rateLimit";
 import { parseQuery, VARIABLE_MAP, STATE_FIPS } from "../../lib/censusTranslator";
 import {
   findGeoCandidates,
@@ -84,9 +87,9 @@ function toTitleCase(text) {
 // Returns { geoParams, locationLabel, population, geoType } on success,
 // or { error } describing what went wrong.
 async function resolveTrendGeo({ location, city, state }) {
-  const cleanLocation = typeof location === "string" ? location.trim() : "";
-  const cleanCity = typeof city === "string" ? city.trim() : "";
-  const cleanState = typeof state === "string" ? state.trim() : "";
+  const cleanLocation = typeof location === "string" ? location.trim().slice(0, 200) : "";
+  const cleanCity = typeof city === "string" ? city.trim().slice(0, 100) : "";
+  const cleanState = typeof state === "string" ? state.trim().slice(0, 100) : "";
 
   // Back-compat: explore wizard sends {city, state}. If both are present and
   // we don't have a free-form `location`, treat them as a "City, State" phrase.
@@ -252,9 +255,18 @@ async function pickEffectiveStartYear({ startYear, endYear, geoType, geoParams, 
   return Math.max(startYear, endYear - maxYears + 1);
 }
 
+// 30 requests per minute per IP — each trend call fans out to up to 10 Census API calls.
+const trendRateLimiter = makeRateLimiter({ windowMs: 60_000, max: 30 });
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  const rl = trendRateLimiter(req);
+  if (!rl.ok) {
+    res.setHeader("Retry-After", String(rl.retryAfter));
+    return res.status(429).json({ error: "Too many requests. Please wait a moment and try again." });
   }
 
   const {

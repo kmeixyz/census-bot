@@ -77,7 +77,7 @@ function getIndex(apiKey) {
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
 
-  const q = String(req.query.q || "").trim();
+  const q = String(req.query.q || "").trim().slice(0, 100);
   if (q.length < 2) return res.status(200).json({ results: [] });
 
   const limit = parseInt(req.query.limit || "0", 10) || Infinity;

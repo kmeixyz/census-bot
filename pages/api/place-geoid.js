@@ -27,6 +27,10 @@ function matchesCityName(censusName, cityQuery) {
 const cache = new Map();
 
 export default async function handler(req, res) {
+  if (req.method !== "GET") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
   const { city, state } = req.query;
   if (!city || !state) {
     return res.status(400).json({ error: "city and state are required" });
@@ -71,7 +75,7 @@ export default async function handler(req, res) {
     const result   = { geoid, citySlug };
     cache.set(cacheKey, result);
     return res.json(result);
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
+  } catch {
+    return res.status(500).json({ error: "Failed to look up place. Please try again." });
   }
 }

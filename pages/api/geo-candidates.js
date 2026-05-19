@@ -8,17 +8,17 @@ import { findGeoCandidates, findZctaByZip, describeCandidate } from "../../lib/g
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
 
-  const name = String(req.query.name || "").trim();
-  const state = req.query.state ? String(req.query.state) : null;
-  const zip = req.query.zip ? String(req.query.zip) : null;
+  const name = String(req.query.name || "").trim().slice(0, 100);
+  const state = req.query.state ? String(req.query.state).trim().slice(0, 50) : null;
+  const zip = req.query.zip ? String(req.query.zip).trim().slice(0, 10) : null;
 
   if (zip) {
     try {
       const z = await findZctaByZip(zip);
-      if (!z) return res.status(404).json({ error: `No ZCTA found for ZIP ${zip}` });
+      if (!z) return res.status(404).json({ error: "No ZCTA found for that ZIP code." });
       return res.status(200).json({ candidates: [{ ...z, ...describeCandidate(z) }] });
-    } catch (err) {
-      return res.status(500).json({ error: String(err?.message || "ZCTA lookup failed") });
+    } catch {
+      return res.status(500).json({ error: "ZCTA lookup failed. Please try again." });
     }
   }
 
@@ -30,7 +30,7 @@ export default async function handler(req, res) {
       candidates: candidates.map((c) => ({ ...c, ...describeCandidate(c) })),
       count: candidates.length,
     });
-  } catch (err) {
-    return res.status(500).json({ error: String(err?.message || "Geo lookup failed") });
+  } catch {
+    return res.status(500).json({ error: "Geography lookup failed. Please try again." });
   }
 }

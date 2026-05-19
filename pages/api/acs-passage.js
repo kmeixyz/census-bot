@@ -21,7 +21,7 @@ export default async function handler(req, res) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     const missingIndex = /index not found/i.test(msg);
     return res.status(missingIndex ? 503 : 500).json({
-      error: msg,
+      error: missingIndex ? "ACS documentation index has not been built yet." : "Failed to retrieve passage.",
       code: missingIndex ? "INDEX_NOT_BUILT" : "INTERNAL",
     });
   }
