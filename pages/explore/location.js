@@ -25,7 +25,7 @@ function GlobalPlaceSearch({ city, stateName, onSelect }) {
   function doSearch(q) {
     if (q.length < 2) { setResults([]); setOpen(false); setSearching(false); return; }
     setSearching(true);
-    fetch(`/api/search-places?q=${encodeURIComponent(q)}&limit=15`)
+    fetch(`/api/search-places?q=${encodeURIComponent(q)}`)
       .then(r => r.json())
       .then(data => {
         if (data.indexing) {

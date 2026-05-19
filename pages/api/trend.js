@@ -130,13 +130,27 @@ async function resolveTrendGeo({ location, city, state }) {
 
   // 3. Candidate lookup for everything else: places, counties, CBSAs, urban
   // areas, county subdivisions, CDPs. Split on first comma so "Cook County, IL"
-  // → name="Cook County", state="IL".
+  // → name="Cook County", state="IL". When there's no comma, also check if the
+  // phrase ends with a known state name/abbreviation ("Austin Texas",
+  // "Austin TX") so punctuation differences don't silently drop results.
   let name = phrase;
   let stateHint = null;
   if (phrase.includes(",")) {
     const [n, s] = phrase.split(",").map((p) => p.trim());
     name = n;
     stateHint = s || null;
+  } else {
+    const lower = phrase.toLowerCase();
+    const words = lower.split(/\s+/);
+    // Try matching the last word (abbr) or last two words (full name) against STATE_FIPS.
+    for (const len of [2, 1]) {
+      const suffix = words.slice(-len).join(" ");
+      if (suffix && STATE_FIPS[suffix]) {
+        stateHint = suffix;
+        name = phrase.slice(0, phrase.length - suffix.length).trim();
+        break;
+      }
+    }
   }
 
   // County names are stored bare in findGeoCandidates ("Cook" not "Cook County"),

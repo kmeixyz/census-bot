@@ -80,7 +80,7 @@ export default async function handler(req, res) {
   const q = String(req.query.q || "").trim();
   if (q.length < 2) return res.status(200).json({ results: [] });
 
-  const limit = Math.min(parseInt(req.query.limit || "15", 10), 50);
+  const limit = parseInt(req.query.limit || "0", 10) || Infinity;
   const apiKey = process.env.CENSUS_API_KEY;
   if (!apiKey) return res.status(500).json({ error: "Missing Census API key." });
 

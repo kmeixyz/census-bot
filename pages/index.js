@@ -40,7 +40,7 @@ export default function Home() {
             <section className={landing.hero}>
               <h1 className={landing.title}>CensusBot</h1>
               <p className={landing.leadStrong}>
-                Ask questions about U.S. community data in plain English.
+                Ask questions about U.S. community data in natural language.
               </p>
               <p className={landing.lead}>
                 Explore information from the American Community Survey (ACS). Choose a place,

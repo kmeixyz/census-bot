@@ -908,10 +908,23 @@ async function runBreakdownTool(toolInput) {
         geoParams = { forGeo: `state:${STATE_FIPS[lower]}` };
         locationLabel = phrase.replace(/\b\w/g, (c) => c.toUpperCase());
       } else {
-        // City+state or county etc.
-        const [namePart, statePart] = phrase.includes(",")
-          ? phrase.split(",").map((p) => p.trim())
-          : [phrase, null];
+        // City+state or county etc. Also handle "Austin Texas" / "Austin TX"
+        // (no comma) by detecting a trailing state name/abbreviation.
+        let namePart = phrase, statePart = null;
+        if (phrase.includes(",")) {
+          [namePart, statePart] = phrase.split(",").map((p) => p.trim());
+        } else {
+          const lower = phrase.toLowerCase();
+          const words = lower.split(/\s+/);
+          for (const len of [2, 1]) {
+            const suffix = words.slice(-len).join(" ");
+            if (suffix && STATE_FIPS[suffix]) {
+              statePart = suffix;
+              namePart = phrase.slice(0, phrase.length - suffix.length).trim();
+              break;
+            }
+          }
+        }
         const candidates = await findGeoCandidates(namePart, { stateName: statePart });
         if (candidates && candidates.length > 0) {
           const picked = candidates[0];
