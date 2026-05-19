@@ -26,11 +26,38 @@ import path from "path";
 
 const MODEL = "claude-sonnet-4-6";
 const MAX_TOKENS = 1024;
-const LOOP_TIMEOUT_MS = 25_000; // 25s total budget for the agentic loop
+const LOOP_TIMEOUT_MS = 35_000; // 35s total budget — allows the 30s overload-retry window to run
+const OVERLOAD_RETRY_MS = 30_000; // keep retrying on Anthropic 529 errors for up to 30s per call
 // Warn if system prompt exceeds this many chars (~30k tokens ≈ 120k chars)
 const SYSTEM_PROMPT_WARN_CHARS = 80_000;
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+// Retry wrapper for Anthropic overload (529) errors. Backs off exponentially
+// (1s, 2s, 4s, 4s, …) until OVERLOAD_RETRY_MS elapses, then rethrows so the
+// caller can surface a friendly message. Other errors propagate immediately.
+async function createMessageWithRetry(opts, { maxElapsedMs = OVERLOAD_RETRY_MS } = {}) {
+  const start = Date.now();
+  let attempt = 0;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    try {
+      return await client.messages.create(opts);
+    } catch (err) {
+      const overloaded =
+        err?.status === 529 ||
+        err?.error?.error?.type === "overloaded_error" ||
+        /overloaded/i.test(err?.message || "");
+      const elapsed = Date.now() - start;
+      const timeLeft = maxElapsedMs - elapsed;
+      if (!overloaded || timeLeft <= 0) throw err;
+      const delay = Math.min(1000 * Math.pow(2, attempt), 4000, timeLeft);
+      attempt++;
+      console.log(`[chat] overloaded, retry ${attempt} in ${delay}ms (${Math.round(elapsed / 1000)}s elapsed)`);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+}
 
 // ── Skill loader — cached at module level so files are only read once per cold start ──
 const SKILLS_DIR = path.join(process.cwd(), "skills");
@@ -1244,7 +1271,7 @@ function buildMetricNotRecognizedPrompt() {
 
 async function verifySentence(numericValue, sentence) {
   try {
-    const response = await client.messages.create({
+    const response = await createMessageWithRetry({
       model: MODEL,
       max_tokens: 10,
       system: `Reply "yes" or "no" only.`,
@@ -1902,8 +1929,9 @@ export default async function handler(req, res) {
         ? { type: "any" }
         : { type: "auto" };
 
-      // Race the Claude call against the remaining timeout budget
-      const responsePromise = client.messages.create({
+      // Race the Claude call against the remaining timeout budget.
+      // createMessageWithRetry handles transient Anthropic 529 overloads internally.
+      const responsePromise = createMessageWithRetry({
         model: MODEL,
         max_tokens: MAX_TOKENS,
         system: systemPrompt,
@@ -2075,7 +2103,7 @@ export default async function handler(req, res) {
       console.warn("[chat] Loop exhausted without text reply — retrying with no tools.");
       try {
         const latestUserMsg = getLatestUserMessage(currentMessages);
-        const fallbackResponse = await client.messages.create({
+        const fallbackResponse = await createMessageWithRetry({
           model: MODEL,
           max_tokens: MAX_TOKENS,
           system: buildSystemPrompt(latestUserMsg, mode) +
@@ -2149,6 +2177,15 @@ export default async function handler(req, res) {
     });
   } catch (err) {
     console.error("[chat] API error:", err);
+    const overloaded =
+      err?.status === 529 ||
+      err?.error?.error?.type === "overloaded_error" ||
+      /overloaded/i.test(err?.message || "");
+    if (overloaded) {
+      return res.status(503).json({
+        error: "The AI service is overloaded right now — we retried for 30 seconds. Please try again in a minute.",
+      });
+    }
     const message = err?.message || "Internal server error.";
     const status = message.includes("timed out") ? 504 : 500;
     return res.status(status).json({ error: message });
