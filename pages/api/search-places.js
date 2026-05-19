@@ -91,14 +91,17 @@ export default async function handler(req, res) {
 
   try {
     const index = await getIndex(apiKey);
-    const ql = q.toLowerCase();
+    // Normalize: strip commas/punctuation and collapse whitespace so
+    // "Austin TX", "Austin, TX", and "Austin Texas" all match the same entries.
+    const normalize = (s) => s.replace(/[,]+/g, " ").replace(/\s+/g, " ").trim();
+    const ql = normalize(q.toLowerCase());
 
     // Collect up to limit*3 candidates then sort: starts-with before contains
     const starts = [];
     const contains = [];
     for (const p of index) {
-      const nl = p.name.toLowerCase();
-      const dl = p.display.toLowerCase();
+      const nl = normalize(p.name.toLowerCase());
+      const dl = normalize(p.display.toLowerCase());
       if (nl.startsWith(ql)) starts.push(p);
       else if (dl.includes(ql)) contains.push(p);
       if (starts.length + contains.length >= limit * 3) break;
