@@ -2145,6 +2145,13 @@ export default async function handler(req, res) {
         const payload = buildTrendChartPayload(trendSeries, metricLabel, trendSeriesWarnings);
         return res.status(200).json({ reply: JSON.stringify(payload), ...sourcesField });
       }
+      // No chart produced — surface Claude's plain-text reply as a normal
+      // message (the visualize prompt tells it to explain in text when a
+      // request can't be charted, e.g. no place or an ambiguous metric).
+      // finalReply is guaranteed set by the end-of-loop fallback above.
+      if (finalReply) {
+        return res.status(200).json({ reply: finalReply, ...sourcesField });
+      }
       return res.status(200).json({ reply: JSON.stringify(chartErrorPayload()), ...sourcesField });
     }
 

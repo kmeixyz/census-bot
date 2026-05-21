@@ -42,7 +42,28 @@ async function fetchState(stateName, fips, apiKey) {
       const name = parseName(row[0]);
       if (!name || seen.has(name.toLowerCase())) continue;
       seen.add(name.toLowerCase());
-      out.push({ name, state: stateName, display: `${name}, ${stateName}` });
+      out.push({ name, state: stateName, display: `${name}, ${stateName}`, geoType: "place" });
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
+// Counties for one state: NAME is "Cook County, Illinois" — keep the full
+// pre-comma name (with "County") so the query parser can resolve it later.
+async function fetchCounties(stateName, fips, apiKey) {
+  try {
+    const url = `https://api.census.gov/data/${CURRENT_ACS_YEAR}/acs/acs5?get=NAME&for=county:*&in=state:${fips}&key=${apiKey}`;
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length < 2) return [];
+    const out = [];
+    for (const row of data.slice(1)) {
+      const name = String(row[0] || "").split(",")[0].trim();
+      if (!name) continue;
+      out.push({ name, state: stateName, display: `${name}, ${stateName}`, geoType: "county" });
     }
     return out;
   } catch {
@@ -56,8 +77,14 @@ async function buildIndex(apiKey) {
   const all = [];
   for (let i = 0; i < entries.length; i += BATCH) {
     const batch = entries.slice(i, i + BATCH);
-    const results = await Promise.all(batch.map(({ state, fips }) => fetchState(state, fips, apiKey)));
-    for (const places of results) all.push(...places);
+    // Fetch both places and counties for each state in the batch.
+    const results = await Promise.all(
+      batch.flatMap(({ state, fips }) => [
+        fetchState(state, fips, apiKey),
+        fetchCounties(state, fips, apiKey),
+      ])
+    );
+    for (const rows of results) all.push(...rows);
   }
   all.sort((a, b) => a.display.localeCompare(b.display));
   return all;
