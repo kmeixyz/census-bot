@@ -1244,12 +1244,15 @@ function buildAcsQuirkPrompt(geoPhrase) {
   }
   const where = geoPhrase.state ? `${geoPhrase.name}, ${geoPhrase.state}` : geoPhrase.name;
   const stateClause = geoPhrase.state || "<state>";
+  // Strip an existing county suffix so the Counties suggestion doesn't
+  // double it up ("Orange County" → "Orange County", not "... County County").
+  const bareName = geoPhrase.name.replace(/\s+(county|parish|census area)$/i, "").trim();
   return [
     `I couldn't find ACS data for **"${where}"**.`,
     ``,
     `The Census Bureau publishes ACS data for:`,
     `- Cities or towns — try **"${geoPhrase.name}, ${stateClause}"**`,
-    `- Counties — try **"${geoPhrase.name} County, ${stateClause}"**`,
+    `- Counties — try **"${bareName} County, ${stateClause}"**`,
     `- Metro areas — try **"${geoPhrase.name} metro"**`,
     `- ZIP codes — try **"in zip 12345"**`,
     `- States — try just the state name`,

@@ -15,6 +15,9 @@ import {
   buildCensusProfileUrl,
 } from "../../lib/censusConstants";
 
+// A looked-up location is a county when its name carries one of these suffixes.
+const COUNTY_RE = /\s+(county|parish|census area)$/i;
+
 function buildTrendSummary(points, metric) {
   if (!Array.isArray(points) || points.length < 2) return null;
   const valid = points.filter(p => p.numericValue != null && Number.isFinite(p.numericValue));
@@ -83,8 +86,11 @@ function SourceFooter({ source, metric, city, stateName }) {
 
 
 // ── Shared place search (same UX as location.js) ─────────────────────────────
-function PlaceSearch({ city, stateName, onSelect, label, inputId }) {
+function PlaceSearch({ city, stateName, onSelect, label, inputId, geoTypeFilter }) {
   const initialDisplay = city && stateName ? `${city}, ${stateName}` : "";
+  // When a geo type is enforced (county-vs-county compare), tailor the copy.
+  const geoNoun = geoTypeFilter === "county" ? "county" : geoTypeFilter === "place" ? "city" : "location";
+  const geoNounPlural = geoTypeFilter === "county" ? "counties" : geoTypeFilter === "place" ? "cities" : "locations";
   const [query, setQuery] = useState(initialDisplay);
   const [results, setResults] = useState([]);
   const [open, setOpen] = useState(false);
@@ -98,7 +104,7 @@ function PlaceSearch({ city, stateName, onSelect, label, inputId }) {
   function doSearch(q) {
     if (q.length < 2) { setResults([]); setOpen(false); setSearching(false); return; }
     setSearching(true);
-    fetch(`/api/search-places?q=${encodeURIComponent(q)}&limit=15`)
+    fetch(`/api/search-places?q=${encodeURIComponent(q)}&limit=${geoTypeFilter ? 40 : 15}`)
       .then(r => r.json())
       .then(data => {
         if (data.indexing) {
@@ -107,8 +113,14 @@ function PlaceSearch({ city, stateName, onSelect, label, inputId }) {
           retryRef.current = setTimeout(() => doSearch(q), 1800);
         } else {
           setIndexing(false);
-          setResults(data.results || []);
-          setOpen((data.results || []).length > 0);
+          // Restrict to the requested geo type so a county lookup only
+          // compares against other counties (and a city against cities).
+          const raw = data.results || [];
+          const filtered = geoTypeFilter
+            ? raw.filter(r => (r.geoType || "place") === geoTypeFilter)
+            : raw;
+          setResults(filtered);
+          setOpen(filtered.length > 0);
         }
         setSearching(false);
       })
@@ -167,7 +179,7 @@ function PlaceSearch({ city, stateName, onSelect, label, inputId }) {
             spellCheck={false}
             className={ex.comboboxInput}
             value={query}
-            placeholder="Search for a location…"
+            placeholder={`Search for a ${geoNoun}…`}
             onChange={handleChange}
             onFocus={() => { if (results.length > 0) setOpen(true); }}
             onBlur={() => setTimeout(() => setOpen(false), 160)}
@@ -199,7 +211,7 @@ function PlaceSearch({ city, stateName, onSelect, label, inputId }) {
             </ul>
           )}
           {open && !searching && !indexing && results.length === 0 && query.length >= 2 && (
-            <div className={ex.comboboxEmpty}>No locations match &ldquo;{query}&rdquo;</div>
+            <div className={ex.comboboxEmpty}>No {geoNounPlural} match &ldquo;{query}&rdquo;</div>
           )}
         </div>
 
@@ -253,6 +265,9 @@ export default function ExploreResults() {
     const raw = router.query.city;
     return Array.isArray(raw) ? raw[0] : raw || "";
   }, [router.query.city]);
+
+  // The looked-up location is a county — drives county-vs-county comparison.
+  const isCountyPrimary = COUNTY_RE.test(city);
 
   useEffect(() => {
     if (!router.isReady) return;
@@ -564,7 +579,7 @@ export default function ExploreResults() {
             <div className={ex.compareSection}>
               {!showCompare ? (
                 <button type="button" className={ex.btnCompare} onClick={() => setShowCompare(true)}>
-                  ＋ Compare With Another City
+                  ＋ Compare With Another {isCountyPrimary ? "County" : "City"}
                 </button>
               ) : (
                 <div className={ex.compareCard}>
@@ -573,6 +588,7 @@ export default function ExploreResults() {
                     city={cmpCity}
                     stateName={cmpState}
                     inputId="compare-place"
+                    geoTypeFilter={isCountyPrimary ? "county" : "place"}
                     onSelect={(c, s) => { setCmpCity(c); setCmpState(s); setCmpResults([]); }}
                   />
                   <div className={ex.compareActions}>
