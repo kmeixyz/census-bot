@@ -458,6 +458,16 @@ If no tool succeeded for the user's question:
 - Say in plain text what you couldn't get and what would help (e.g. "I
   couldn't resolve that place — try 'City, State' format").
 
+UNSUPPORTED GEOGRAPHIES:
+CensusBot looks up ACS data for cities, counties, metro areas (CBSAs), ZIP
+codes (ZCTAs), and states. It does NOT aggregate census tracts into
+neighborhoods, Chicago community areas, school districts, council districts,
+or any other custom boundary. If a user asks about one of those, say plainly
+that we don't aggregate tracts — never suggest "try a neighborhood", "try a
+community area", or "try a tract" as an alternative, because the tools can't
+deliver them. Steer the user toward the supported levels (city, county,
+metro, ZIP, state) instead.
+
 DOCUMENTATION QUESTIONS (concepts, methodology, definitions):
 When the user asks about WHAT something means, HOW the ACS measures it, MOEs,
 1-year vs 5-year differences, what a table covers, who is included in a
@@ -1407,6 +1417,28 @@ function sameCandidate(a, b) {
 // the bare county name in Census data (e.g. "Cook County" → "Cook").
 const COUNTY_LIKE_SUFFIX_RE = /\s+(county|parish|census area)$/i;
 
+// Resolve a ZIP/ZCTA from the user message. Two triggers, single source of truth:
+// (1) the geo phrase is shaped like a ZIP — bare "60618" or "zip 60618" /
+//     "zcta 60618" (catches "rent in 60618" with no explicit keyword).
+// (2) the message has a "zip"/"zcta" keyword + a 5-digit number anywhere —
+//     catches forms with no extractable " in <phrase>" like "Tell me about ZIP 60618".
+// Returns { candidate, zip } or null. Null on either no-match or an unpublished
+// ZCTA — the quirk prompt downstream explains unpublished ZIPs accurately.
+async function tryResolveZcta(userMsg, geoName) {
+  const stripped = String(geoName || "").trim().replace(/^(zip|zcta)\s+/i, "").trim();
+  const phraseMatch = stripped.match(/^(\d{5})$/);
+  if (phraseMatch) {
+    const candidate = await findZctaByZip(phraseMatch[1]).catch(() => null);
+    if (candidate) return { candidate, zip: phraseMatch[1] };
+  }
+  const zipMatch = String(userMsg || "").match(/\b(\d{5})\b/);
+  if (zipMatch && /\b(zip|zcta)\b/i.test(userMsg)) {
+    const candidate = await findZctaByZip(zipMatch[1]).catch(() => null);
+    if (candidate) return { candidate, zip: zipMatch[1] };
+  }
+  return null;
+}
+
 // Detect ambiguity in the query without halting — returns defaults + raw data so
 // the caller can both run the best-guess lookup AND surface the other interpretations
 // as clickable alternatives.
@@ -1428,23 +1460,25 @@ async function detectAlternatives(userMsg, { skipMetricCheck = false } = {}) {
     };
   }
 
-  // ── ZCTA shortcut: user gave a 5-digit ZIP with a zip/zcta keyword ──
-  const zipMatch = String(userMsg || "").match(/\b(\d{5})\b/);
-  if (zipMatch && /\b(zip|zcta)\b/i.test(userMsg)) {
-    const zcta = await findZctaByZip(zipMatch[1]).catch(() => null);
-    if (zcta) {
-      out.geo = {
-        name: zipMatch[1],
-        stateName: null,
-        candidates: [zcta],
-        types: new Set(["zcta"]),
-        defaultGeo: zcta,
-      };
-      return out;
-    }
+  const geo = extractGeoPhrase(userMsg);
+
+  // Single ZCTA resolution step — covers both the phrase-shape case (bare
+  // "60618" or "zip 60618") and the keyword-anywhere case ("Tell me about
+  // ZIP 60618"). The helper returns null when the ZIP isn't a published
+  // residential ZCTA, so those fall through to the quirk prompt for an
+  // accurate explanation.
+  const zcta = await tryResolveZcta(userMsg, geo?.name);
+  if (zcta) {
+    out.geo = {
+      name: zcta.zip,
+      stateName: null,
+      candidates: [zcta.candidate],
+      types: new Set(["zcta"]),
+      defaultGeo: zcta.candidate,
+    };
+    return out;
   }
 
-  const geo = extractGeoPhrase(userMsg);
   if (!geo?.name) return out;
 
   const lowerName = geo.name.toLowerCase();
