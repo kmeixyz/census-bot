@@ -221,13 +221,15 @@ const TREND_TOOL = {
 const ACS_VARIABLE_TOOL = {
   name: "lookup_census_variable",
   description:
-    "Look up ANY Census ACS variable for a city/state/county when the metric the user wants " +
-    "is NOT on the curated lookup_census_data enum. Examples: race breakdowns from B02001 or B03002, " +
-    "household type from B11001, language spoken at home from B16001, region of birth from B05006, " +
-    "rooms / bedrooms from B25017 / B25041, etc. Always pick the most precise variable for the user's question " +
-    "and pass a precise human-readable label so the displayed result is unambiguous (e.g., not 'Asian' but " +
-    "'Asian Alone, Not Hispanic'). Always include the table_id so the source link works. Use share_of_variable_id " +
-    "only when the user explicitly asked for a percentage or share — for raw counts, omit it.",
+    "Look up ANY Census ACS variable for a city/state/county/ZIP code area when the metric " +
+    "the user wants is NOT on the curated lookup_census_data enum. Examples: race breakdowns " +
+    "from B02001 or B03002, household type from B11001, language spoken at home from B16001, " +
+    "region of birth from B05006, rooms / bedrooms from B25017 / B25041, etc. Always pick the " +
+    "most precise variable for the user's question and pass a precise human-readable label so the " +
+    "displayed result is unambiguous (e.g., not 'Asian' but 'Asian Alone, Not Hispanic'). Always " +
+    "include the table_id so the source link works. Use share_of_variable_id only when the user " +
+    "explicitly asked for a percentage or share — for raw counts, omit it. " +
+    "For ZIP code queries, pass zip_code='60618' and omit city/state.",
   input_schema: {
     type: "object",
     properties: {
@@ -248,20 +250,24 @@ const ACS_VARIABLE_TOOL = {
         type: "string",
         description: "ACS table ID like 'B02001'. Used to build the source link.",
       },
+      zip_code: {
+        type: "string",
+        description: "5-digit ZIP code when the user asked about a specific ZIP code area (ZCTA), e.g. '60618'. When provided, omit city and state.",
+      },
       city: {
         type: "string",
-        description: "City name, e.g. 'Chicago'. For state-only or county-only queries, pass the empty string.",
+        description: "City name, e.g. 'Chicago'. For state-only or county-only queries, pass the empty string. Omit when using zip_code.",
       },
       state: {
         type: "string",
-        description: "Full state name, e.g. 'Illinois'.",
+        description: "Full state name, e.g. 'Illinois'. Omit when using zip_code.",
       },
       share_of_variable_id: {
         type: "string",
         description: "Optional: when the user asks for a percentage/share, divide variable_id by this denominator variable ID and return percent.",
       },
     },
-    required: ["variable_id", "label", "unit", "table_id", "city", "state"],
+    required: ["variable_id", "label", "unit", "table_id"],
   },
 };
 
@@ -613,14 +619,17 @@ async function runAcsVariableTool(toolInput) {
   const censusApiKey = process.env.CENSUS_API_KEY;
   if (!censusApiKey) return { error: "Census API key not configured on server." };
 
-  const { variable_id, label, unit, table_id, city, state, share_of_variable_id } = toolInput || {};
-  console.log(`[acs-var] call: variable_id=${variable_id}, label="${label}", table_id=${table_id}, city="${city}", state="${state}"`);
+  const { variable_id, label, unit, table_id, zip_code, city, state, share_of_variable_id } = toolInput || {};
+  console.log(`[acs-var] call: variable_id=${variable_id}, label="${label}", table_id=${table_id}, zip_code="${zip_code}", city="${city}", state="${state}"`);
 
   if (!variable_id || !/^[A-Z]\d+_\d+[A-Z]?$/.test(String(variable_id).trim())) {
     return { error: `Invalid variable_id '${variable_id}'. Must look like 'B03002_006E'.` };
   }
-  if (!label || !unit || !table_id || !state) {
-    return { error: "Missing required fields. lookup_census_variable needs variable_id, label, unit, table_id, city, state." };
+  if (!label || !unit || !table_id) {
+    return { error: "Missing required fields. lookup_census_variable needs variable_id, label, unit, table_id, and either zip_code or city+state." };
+  }
+  if (!zip_code && !state) {
+    return { error: "Missing geography. Provide zip_code for a ZIP code area, or city + state for a city/county/state." };
   }
 
   // Validate the variable_id against the live ACS metadata BEFORE fetching.
@@ -630,67 +639,82 @@ async function runAcsVariableTool(toolInput) {
   const validationError = await validateVariableClaim({ variable_id, label, table_id });
   if (validationError) return { error: validationError, kind: "variable_validation" };
 
-  // Resolve geo: try the curated parser first (handles plain "City, State" and
-  // states), then fall back to findGeoCandidates for counties, CDPs, and any
-  // other Census geography parseQuery doesn't natively cover. If multiple
-  // candidates match, we return them so Claude can ask the user to clarify
-  // rather than silently picking one.
-  const queryStr = city ? `${label} in ${city}, ${state}` : `${label} in ${state}`;
   let geoParams = null;
   let locationLabel = null;
-
-  // Carry the picked geo's population/geoType into the dataset-fallback fetcher
-  // so we can prefer ACS 1-year for places ≥ 65k pop. parseQuery doesn't surface
-  // these; only findGeoCandidates does.
   let pickedPopulation = null;
   let pickedGeoType = null;
 
-  try {
-    const parsed = parseQuery(queryStr);
-    if (!parsed.error && parsed.geoParams) {
-      geoParams = parsed.geoParams;
-      locationLabel = parsed.locationLabel;
+  // ZIP code path — resolve to ZCTA candidate before attempting city/state lookup.
+  if (zip_code) {
+    const digits = String(zip_code).trim().replace(/\D/g, "");
+    if (digits.length !== 5) {
+      return { error: `zip_code must be exactly 5 digits, got '${zip_code}'.` };
     }
-  } catch {
-    // fall through to candidate lookup
+    const zctaCandidate = await findZctaByZip(digits).catch(() => null);
+    if (!zctaCandidate) {
+      return {
+        error: `ZIP code ${digits} is not published as a ZCTA in ACS data. It may be a P.O. box or institutional ZIP. Try asking the user for a nearby residential ZIP or the city name instead.`,
+      };
+    }
+    geoParams = geoParamsFromCandidate(zctaCandidate);
+    locationLabel = `ZIP ${digits}`;
+    pickedGeoType = "zcta";
   }
 
-  if (!geoParams && city) {
+  // City/state path — try the curated parser first (handles plain "City, State"
+  // and states), then fall back to findGeoCandidates for counties, CDPs, and any
+  // other Census geography parseQuery doesn't natively cover. If multiple
+  // candidates match, we return them so Claude can ask the user to clarify
+  // rather than silently picking one.
+  if (!geoParams) {
+    const queryStr = city ? `${label} in ${city}, ${state}` : `${label} in ${state}`;
     try {
-      const candidates = await findGeoCandidates(city, { stateName: state || null });
-      if (candidates && candidates.length >= 1) {
-        // Prompt for clarification ONLY when candidates span multiple states —
-        // those are the cases where picking automatically would silently give
-        // the wrong answer (e.g. "Springfield" with no state). When all
-        // candidates are in the same state, take the top-ranked one (same
-        // behavior as the curated fast path's defaultGeo).
-        const stateSet = new Set(candidates.map(c => c.stateName).filter(Boolean));
-        if (stateSet.size > 1 && !state) {
-          return {
-            error: `"${city}" matches multiple geographies across different states. Ask the user to clarify which one — options include: ${candidates.slice(0, 6).map(c => describeCandidate(c).label).join("; ")}.`,
-            ambiguous: true,
-            candidates: candidates.slice(0, 6).map(c => ({
-              label: describeCandidate(c).label,
-              sublabel: describeCandidate(c).sublabel,
-              geoType: c.geoType,
-            })),
-          };
-        }
-        const picked = candidates[0];
-        geoParams = geoParamsFromCandidate(picked);
-        locationLabel = candidateLabel(picked);
-        pickedPopulation = typeof picked.population === "number" ? picked.population : null;
-        pickedGeoType = picked.geoType || null;
+      const parsed = parseQuery(queryStr);
+      if (!parsed.error && parsed.geoParams) {
+        geoParams = parsed.geoParams;
+        locationLabel = parsed.locationLabel;
       }
     } catch {
-      // candidate lookup failed — fall through to "couldn't resolve" error
+      // fall through to candidate lookup
     }
-  }
 
-  if (!geoParams) {
-    return {
-      error: `Could not resolve "${city}, ${state}" to a Census geography. Ask the user to clarify the location — they may have a typo, or the place may not be tracked in ACS at the requested level.`,
-    };
+    if (!geoParams && city) {
+      try {
+        const candidates = await findGeoCandidates(city, { stateName: state || null });
+        if (candidates && candidates.length >= 1) {
+          // Prompt for clarification ONLY when candidates span multiple states —
+          // those are the cases where picking automatically would silently give
+          // the wrong answer (e.g. "Springfield" with no state). When all
+          // candidates are in the same state, take the top-ranked one (same
+          // behavior as the curated fast path's defaultGeo).
+          const stateSet = new Set(candidates.map(c => c.stateName).filter(Boolean));
+          if (stateSet.size > 1 && !state) {
+            return {
+              error: `"${city}" matches multiple geographies across different states. Ask the user to clarify which one — options include: ${candidates.slice(0, 6).map(c => describeCandidate(c).label).join("; ")}.`,
+              ambiguous: true,
+              candidates: candidates.slice(0, 6).map(c => ({
+                label: describeCandidate(c).label,
+                sublabel: describeCandidate(c).sublabel,
+                geoType: c.geoType,
+              })),
+            };
+          }
+          const picked = candidates[0];
+          geoParams = geoParamsFromCandidate(picked);
+          locationLabel = candidateLabel(picked);
+          pickedPopulation = typeof picked.population === "number" ? picked.population : null;
+          pickedGeoType = picked.geoType || null;
+        }
+      } catch {
+        // candidate lookup failed — fall through to "couldn't resolve" error
+      }
+    }
+
+    if (!geoParams) {
+      return {
+        error: `Could not resolve "${city}, ${state}" to a Census geography. Ask the user to clarify the location — they may have a typo, or the place may not be tracked in ACS at the requested level.`,
+      };
+    }
   }
 
   const parsed = { geoParams, locationLabel };
@@ -1596,6 +1620,16 @@ async function handleStatisticModeFastPath(req, res, userMsg, mode, opts = {}) {
   // split and resolve the wrong location. The prefix is only there for display;
   // pickedMetric/pickedGeo carry the actual override.
   userMsg = stripPickedPrefix(userMsg);
+
+  // "median rent by ZIP code (60618)" → "median rent in 60618"
+  // Metric parsers tokenize the full query when no separator is found, so extra
+  // tokens break the exact-length match. This normalization fires only when a
+  // 5-digit ZIP appears after "by zip/zcta" — grouping queries like "population
+  // by race in Texas" are unaffected (no bare 5-digit number).
+  userMsg = userMsg.replace(
+    /\bby\s+(?:zip(?:\s+code)?|zcta)\s*\(?(\d{5})\)?/gi,
+    (_, zip) => `in ${zip}`
+  );
 
   // Detect ambiguity but DO NOT halt — we'll always run the best-guess lookup
   // and surface the other interpretations as clickable alternatives.
