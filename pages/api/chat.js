@@ -546,8 +546,10 @@ Mode: VISUALIZATION. The user wants charts. Every answer in this mode is a chart
 - Always call get_census_trend (never lookup_census_data) for the data series.
 - For "compare X and Y" queries: call get_census_trend ONCE PER PLACE in parallel — the server combines the results into a multi-line chart.
 - For single-place queries: one get_census_trend call is enough; the server renders a single line.
+- For multi-variable single-place queries (e.g. "education level trend in Boston"): call get_census_trend ONCE PER VARIABLE (e.g. bachelor's degree, some college, high school diploma) all for the SAME location — the server combines them into a multi-line chart with variable labels as the legend. Use a distinct label for each variable so the chart legend is informative.
 - If the user's request can't be expressed as a chart (no place, ambiguous metric, etc.), say so in plain text — do NOT call lookup_census_data instead. Charts only.
-- Never provide external API instructions, ACS table guesses, or variable guesses.`,
+- Never provide external API instructions, ACS table guesses, or variable guesses.
+- After the tool calls complete, write 2–3 sentences describing what the chart shows: the key trend, any notable differences between series, and what it means in context. This description appears outside the chart for the user.`,
 };
 
 function buildSystemPrompt(userMessage, mode) {
@@ -1188,8 +1190,8 @@ function inferTrendMetricLabel(userMessage) {
   return "Trend";
 }
 
-function buildTrendChartPayload(trendSeries, metricLabel, seriesWarnings = []) {
-  // trendSeries: [{ label, points: [{year, numericValue}] }]
+function buildTrendChartPayload(trendSeries, metricLabel, seriesWarnings = [], { overrideLocation = null, singlePlace = false } = {}) {
+  // trendSeries: [{ label, varLabel?, points: [{year, numericValue}] }]
   const allYears = trendSeries.flatMap((s) => s.points.map((p) => p.year));
   const yearRange = allYears.length
     ? `${Math.min(...allYears)}–${Math.max(...allYears)}`
@@ -1208,11 +1210,19 @@ function buildTrendChartPayload(trendSeries, metricLabel, seriesWarnings = []) {
     uniqueWarnings.push(w);
   }
 
+  // When overrideLocation is set (multi-variable, single place), the series
+  // labels are already the variable names — use the place name as the chart
+  // location subtitle instead of joining the series labels.
+  const location = overrideLocation || trendSeries.map((s) => s.label).join(" vs ");
+
   return {
     type: "trend_chart",
     chartType: trendSeries.length > 1 ? "multi_line" : "line",
     metric: metricLabel || "Trend",
-    location: trendSeries.map((s) => s.label).join(" vs "),
+    location,
+    // singlePlace=true tells TrendChart to say "Comparing N measures" instead
+    // of "Comparing N places" in the multi-series lede.
+    ...(singlePlace ? { singlePlace: true } : {}),
     series: trendSeries.map((s) => ({
       label: s.label,
       points: s.points.map((p) => ({
@@ -2056,11 +2066,15 @@ export default async function handler(req, res) {
                     .filter(Boolean).join(", ") ||
                   "Series";
                 const resolvedLabel = result.locationLabel || fallbackLabel;
+                // Keep the variable label Claude passed so we can relabel the
+                // series when the same place is called multiple times with
+                // different variables (e.g. education-level comparison).
+                const resolvedVarLabel = block.input?.label || block.input?.metric || metricLabel || null;
                 const points = result.points.map((p) => ({
                   year: Number(p.year),
                   numericValue: Number(p.numericValue),
                 }));
-                trendSeries.push({ label: resolvedLabel, points });
+                trendSeries.push({ label: resolvedLabel, varLabel: resolvedVarLabel, points });
                 if (result.variableLabel) lastTrendVariableLabel = result.variableLabel;
                 if (result.seriesWarning) trendSeriesWarnings.push(result.seriesWarning);
                 // Trend tool's result is an object (points + locationLabel),
@@ -2206,15 +2220,38 @@ export default async function handler(req, res) {
       // categorical breakdown via get_census_breakdown). Trend chart is the
       // default — emit it when get_census_trend produced any series.
       if (lastBarChart) {
-        return res.status(200).json({ reply: JSON.stringify(lastBarChart), ...sourcesField });
+        return res.status(200).json({
+          reply: JSON.stringify(lastBarChart),
+          description: finalReply || null,
+          ...sourcesField,
+        });
       }
       if (trendSeries.length > 0) {
+        // When all series share the same location (multi-variable, single place),
+        // relabel each series with its variable label so the chart legend is
+        // informative ("Bachelor's Degree" not "Boston, Massachusetts x3").
+        let overrideLocation = null;
+        const uniqueLocations = new Set(trendSeries.map(s => s.label));
+        if (uniqueLocations.size === 1 && trendSeries.length > 1) {
+          overrideLocation = [...uniqueLocations][0];
+          for (const s of trendSeries) {
+            s.label = s.varLabel || s.label;
+          }
+        }
+
         // Prefer the variable label echoed by /api/trend (works for both
         // curated and free-form trends). Fall back to inferTrendMetricLabel
         // for older flows where variableLabel wasn't surfaced.
-        const metricLabel = lastTrendVariableLabel || inferTrendMetricLabel(initialUserMsg);
-        const payload = buildTrendChartPayload(trendSeries, metricLabel, trendSeriesWarnings);
-        return res.status(200).json({ reply: JSON.stringify(payload), ...sourcesField });
+        const metricLabel = (overrideLocation ? null : lastTrendVariableLabel) || inferTrendMetricLabel(initialUserMsg);
+        const payload = buildTrendChartPayload(trendSeries, metricLabel, trendSeriesWarnings, {
+          overrideLocation,
+          singlePlace: !!overrideLocation,
+        });
+        return res.status(200).json({
+          reply: JSON.stringify(payload),
+          description: finalReply || null,
+          ...sourcesField,
+        });
       }
       // No chart produced — surface Claude's plain-text reply as a normal
       // message (the visualize prompt tells it to explain in text when a

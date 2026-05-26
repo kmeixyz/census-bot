@@ -840,6 +840,7 @@ export default function ChatPage() {
         setMessages(prev => [...prev, {
           role: "assistant",
           content: data.reply,
+          description: data.description || null,
           methodology: data.methodology || null,
           caveats: data.caveats || null,
           alternatives: Array.isArray(data.alternatives) ? data.alternatives : null,
@@ -890,7 +891,7 @@ export default function ChatPage() {
   }
 
   function clearChat() {
-    setMode(null);
+    setMode("statistic");
     setMessages([]);
     setInput("");
     setExpandedChartIndex(null);
@@ -944,7 +945,7 @@ export default function ChatPage() {
                   <div className={styles.emptyStateInner}>
                     <p className={styles.emptyPrompt}>Try one of these to get started</p>
                     <div className={styles.suggestions}>
-                      {activeMode.suggestions.map(s => (
+                      {(activeMode?.suggestions ?? []).map(s => (
                         <button key={s} type="button" className={styles.suggestion} onClick={() => sendMessage(s)}>
                           {s}
                         </button>
@@ -983,12 +984,22 @@ export default function ChatPage() {
                                 {Array.isArray(parsed.seriesWarnings) && parsed.seriesWarnings.length > 0 && (
                                   <ChartMethodologyNote warning={parsed.seriesWarnings[0]} />
                                 )}
+                                {msg.description && (
+                                  <div style={{ marginTop: 12, fontSize: 14, lineHeight: 1.6, color: "var(--text)" }}>
+                                    {renderMarkdown(msg.description)}
+                                  </div>
+                                )}
                               </>
                             ) : isBarChart ? (
                               <>
                                 <BarChart data={parsed} />
                                 {Array.isArray(parsed.seriesWarnings) && parsed.seriesWarnings.length > 0 && (
                                   <ChartMethodologyNote warning={parsed.seriesWarnings[0]} />
+                                )}
+                                {msg.description && (
+                                  <div style={{ marginTop: 12, fontSize: 14, lineHeight: 1.6, color: "var(--text)" }}>
+                                    {renderMarkdown(msg.description)}
+                                  </div>
                                 )}
                               </>
                             ) : isChartError ? (
@@ -1084,7 +1095,7 @@ export default function ChatPage() {
                         onSend={() => sendMessage()}
                         loading={loading}
                         disabled={atLimit}
-                        placeholder={activeMode.placeholder}
+                        placeholder={activeMode?.placeholder ?? "Ask a question..."}
                       />
                     </div>
                     <button type="button" className={styles.newChatPill} onClick={clearChat}>

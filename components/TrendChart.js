@@ -244,7 +244,7 @@ export default function TrendChart({ data, expanded = false, inline = false, sho
   }, [series, effectiveRange?.[0], effectiveRange?.[1]]);
 
   const isMulti = visibleSeries.length > 1;
-  const { metric, location, source } = data;
+  const { metric, location, source, singlePlace } = data;
   const locationComma = (location || "").indexOf(",");
   const locationCity = locationComma > -1 ? location.slice(0, locationComma).trim() : location || "";
   const locationState = locationComma > -1 ? location.slice(locationComma + 1).trim() : "";
@@ -376,7 +376,7 @@ export default function TrendChart({ data, expanded = false, inline = false, sho
           fontSize: 13, lineHeight: 1.55, color: "var(--chart-tick)",
           margin: "0 0 14px", maxWidth: 640,
         }}>
-          Comparing <strong style={{ color: "var(--text)" }}>{visibleSeries.length} places</strong>{" "}
+          Comparing <strong style={{ color: "var(--text)" }}>{visibleSeries.length} {singlePlace ? "measures" : "places"}</strong>{" "}
           ({lede.labels}) from {lede.lo} to {lede.hi}. Annual estimates from the 5-year ACS rolling sample.
         </p>
       )}
