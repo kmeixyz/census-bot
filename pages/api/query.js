@@ -91,6 +91,13 @@ export default async function handler(req, res) {
     });
   } catch (err) {
     console.error("Census fetch error:", err.message);
+    // "Couldn't find X" means the place/county name didn't match any ACS
+    // geography — a permanent miss, not a transient error. Don't say "try again".
+    if (/couldn't find/i.test(String(err?.message || ""))) {
+      return res.status(404).json({
+        error: `Couldn't find "${locationLabel}" in ACS data. Check the spelling, or try a different city, county, or state.`,
+      });
+    }
     return res.status(500).json({ error: "Failed to fetch data. Please try again." });
   }
 }
