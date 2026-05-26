@@ -458,6 +458,13 @@ CHART OUTPUT RULES (apply only when the mode-specific instructions below say to 
 - Do NOT output CSV, markdown tables, external-tool suggestions, graphing
   steps, mentions of Recharts/Excel/Sheets, or raw variable IDs.
 
+LOCATION ACCURACY RULE:
+When the user specifies a "City, State" pair, pass EXACTLY that to the tool —
+never substitute a different state from your own knowledge. If the tool returns
+a "couldn't find" or "did you mean" error, relay the suggestion to the user in
+one short sentence and ask them to confirm before retrying. Do not produce a
+chart or statistic for a location the user didn't confirm.
+
 If no tool succeeded for the user's question:
 - Don't fill the gap with invented tables, variable IDs, or API URLs from
   your own knowledge — same grounding rule applies.
@@ -504,7 +511,7 @@ Formatting rules (strictly follow these):
 - Lead with the number, then one sentence of context if useful. That's it.
 - Don't make up numbers — always use the tool for specific statistics.
 - If a metric or location isn't supported, say so in one sentence and suggest the closest option.
-- If a tool call returns an error, do NOT retry it. Respond exactly: "I don’t have time-series Census access for that request yet."`;
+- If a tool call returns an error: respond with ONE short sentence explaining what went wrong and a clarifying question so the user can correct it. Do not retry the same call. Never give a generic non-answer — explain the specific problem.`
 
 // ── Mode-specific skill routing ─────────────────────────────────────────────
 const MODE_SKILLS = {
@@ -713,8 +720,23 @@ async function runAcsVariableTool(toolInput) {
     }
 
     if (!geoParams) {
+      // No match — do a nationwide search for the city name and suggest the
+      // closest result so Claude can ask the user to confirm before retrying.
+      if (city) {
+        const nationwideCandidates = await findGeoCandidates(city, { stateName: null }).catch(() => []);
+        if (nationwideCandidates && nationwideCandidates.length > 0) {
+          const best = nationwideCandidates[0];
+          const suggestedLabel = candidateLabel(best);
+          return {
+            error: `Couldn't find "${city}, ${state}" in ACS data. Did you mean ${suggestedLabel}? Ask the user to confirm before retrying.`,
+            geo_not_found: true,
+            requested_phrase: `${city}, ${state}`,
+            suggested_label: suggestedLabel,
+          };
+        }
+      }
       return {
-        error: `Could not resolve "${city}, ${state}" to a Census geography. Ask the user to clarify the location — they may have a typo, or the place may not be tracked in ACS at the requested level.`,
+        error: `Could not resolve "${city}, ${state}" to a Census geography. Ask the user to clarify the location.`,
       };
     }
   }
@@ -1288,20 +1310,16 @@ function buildAcsQuirkPrompt(geoPhrase) {
   }
   const where = geoPhrase.state ? `${geoPhrase.name}, ${geoPhrase.state}` : geoPhrase.name;
   const stateClause = geoPhrase.state || "<state>";
-  // Strip an existing county suffix so the Counties suggestion doesn't
-  // double it up ("Orange County" → "Orange County", not "... County County").
   const bareName = geoPhrase.name.replace(/\s+(county|parish|census area)$/i, "").trim();
   return [
-    `I couldn't find ACS data for **"${where}"**.`,
+    `I couldn't find **"${where}"** in ACS data. It may be misspelled, or the Census Bureau may not publish data for it at the place level.`,
     ``,
-    `The Census Bureau publishes ACS data for:`,
-    `- Cities or towns — try **"${geoPhrase.name}, ${stateClause}"**`,
-    `- Counties — try **"${bareName} County, ${stateClause}"**`,
-    `- Metro areas — try **"${geoPhrase.name} metro"**`,
-    `- ZIP codes — try **"in zip 12345"**`,
-    `- States — try just the state name`,
-    ``,
-    `Reword your question with one of those formats and I'll try again.`,
+    `Things to try:`,
+    `- Double-check the spelling of the city or county name`,
+    `- For counties, include the word County — e.g. **"${bareName} County, ${stateClause}"**`,
+    `- For metro areas, try **"${geoPhrase.name} metro"**`,
+    `- For ZIP codes, try **"in zip 12345"**`,
+    `- For state-level data, just use the state name`,
   ].join("\n");
 }
 
@@ -2253,14 +2271,15 @@ export default async function handler(req, res) {
           ...sourcesField,
         });
       }
-      // No chart produced — surface Claude's plain-text reply as a normal
-      // message (the visualize prompt tells it to explain in text when a
-      // request can't be charted, e.g. no place or an ambiguous metric).
-      // finalReply is guaranteed set by the end-of-loop fallback above.
+      // No chart produced — surface Claude's plain-text reply (e.g. a
+      // clarification question, an explanation of why the request can't be
+      // charted, or a location confirmation prompt).
       if (finalReply) {
         return res.status(200).json({ reply: finalReply, ...sourcesField });
       }
-      return res.status(200).json({ reply: JSON.stringify(chartErrorPayload()), ...sourcesField });
+      // Should not reach here — Claude always produces text. Surface a
+      // plain-language fallback rather than a generic error card.
+      return res.status(200).json({ reply: "I wasn't able to generate a chart for that request. Could you rephrase or check the location?", ...sourcesField });
     }
 
     // For statistic mode, parse structured sections from the reply

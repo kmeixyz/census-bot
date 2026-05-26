@@ -184,11 +184,29 @@ async function resolveTrendGeo({ location, city, state }) {
         };
       }
     }
+
+    // No match in the requested location. Do a nationwide search to find the
+    // closest named place — if found, return it as a suggestion so Claude can
+    // ask the user to confirm before retrying (rather than silently continuing).
+    const nameToSearch = userTypedCountySuffix
+      ? name.replace(COUNTY_LIKE_SUFFIX_RE, "").trim()
+      : name;
+    const nationwideCandidates = await findGeoCandidates(nameToSearch, { stateName: null }).catch(() => []);
+    if (nationwideCandidates && nationwideCandidates.length > 0) {
+      const best = nationwideCandidates[0];
+      const suggestedLabel = candidateLabel(best);
+      return {
+        error: `Couldn't find "${phrase}" in ACS data. Did you mean ${suggestedLabel}? Ask the user to confirm before retrying.`,
+        geo_not_found: true,
+        requested_phrase: phrase,
+        suggested_label: suggestedLabel,
+      };
+    }
   } catch {
     // fall through to error
   }
 
-  return { error: `Couldn't resolve "${phrase}" to an ACS geography.` };
+  return { error: `Couldn't resolve "${phrase}" to an ACS geography. Ask the user to clarify the location name.` };
 }
 
 // Resolve which Census variable to fetch. Two paths:
