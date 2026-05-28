@@ -428,6 +428,7 @@ export default function TrendChart({ data, expanded = false, inline = false, sho
                       stroke="var(--text)" strokeOpacity="0.1"/>
                 <text x={PL - 8} y={ys(t)} textAnchor="end" dominantBaseline="middle"
                       fontSize="10" fill="var(--chart-muted)"
+                      stroke="var(--chart-surface, #fff)" strokeWidth="4" paintOrder="stroke"
                       style={{ fontVariantNumeric: "tabular-nums" }}>
                   {formatYTick(t, metric, yStep)}
                 </text>
@@ -470,14 +471,25 @@ export default function TrendChart({ data, expanded = false, inline = false, sho
                     });
 
                     // Pass 2: slope-aware initial side for every point.
+                    // First point: prefer above when trend goes up — the space above
+                    // the dot is clear, and below risks colliding with y-axis labels.
+                    // Last point: mirror of first (slope-in).
+                    // Middle points: label on the open side of the slope.
                     const sides = pts.map((p, i) => {
                       const y = ys(p.numericValue);
+                      const isFirst = i === 0;
                       const isLast = i === pts.length - 1;
-                      let above = isLast
-                        ? (i > 0 ? pts[i].numericValue >= pts[i - 1].numericValue : true)
-                        : pts[i + 1].numericValue < pts[i].numericValue;
-                      if (above && y - 18 < 0) above = false;
-                      if (!above && y + 24 > H) above = true;
+                      let above;
+                      if (isFirst) {
+                        above = pts.length > 1 ? pts[1].numericValue > pts[0].numericValue : true;
+                      } else if (isLast) {
+                        above = pts[i].numericValue >= pts[i - 1].numericValue;
+                      } else {
+                        above = pts[i + 1].numericValue < pts[i].numericValue;
+                      }
+                      // Keep label inside the plot area.
+                      if (above && y - 18 < PT) above = false;
+                      if (!above && y + 24 > H - PB) above = true;
                       return above;
                     });
 
@@ -520,6 +532,9 @@ export default function TrendChart({ data, expanded = false, inline = false, sho
                                   textAnchor={isFirst ? "start" : isLast ? "end" : "middle"}
                                   fontSize="10" fontWeight={isHover ? 700 : 500}
                                   fill={isHover ? "var(--text)" : "var(--chart-tick)"}
+                                  stroke="var(--chart-surface, #fff)"
+                                  strokeWidth="4"
+                                  paintOrder="stroke"
                                   style={{ fontVariantNumeric: "tabular-nums" }}>
                               {formatValueForMetric(p.numericValue, metric)}
                             </text>
@@ -544,6 +559,9 @@ export default function TrendChart({ data, expanded = false, inline = false, sho
                               textAnchor="start" dominantBaseline="middle"
                               fontSize="10" fontWeight={700}
                               fill={color}
+                              stroke="var(--chart-surface, #fff)"
+                              strokeWidth="4"
+                              paintOrder="stroke"
                               style={{ fontVariantNumeric: "tabular-nums" }}>
                           {formatValueForMetric(last.numericValue, metric)}
                         </text>
@@ -587,6 +605,7 @@ export default function TrendChart({ data, expanded = false, inline = false, sho
                       textAnchor="middle" fontSize="10"
                       fill={(!isMulti && isLast) ? "var(--accent)" : "var(--chart-muted)"}
                       fontWeight={(!isMulti && isLast) ? 700 : 500}
+                      stroke="var(--chart-surface, #fff)" strokeWidth="4" paintOrder="stroke"
                       style={{ fontVariantNumeric: "tabular-nums" }}>
                   {year}
                 </text>
