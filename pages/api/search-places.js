@@ -74,23 +74,58 @@ async function fetchCounties(stateName, fips, apiKey) {
   }
 }
 
+const SUBDIVISION_SUFFIX = /\s+(township|town|borough|charter township|district|gore|grant|location|plantation|reservation|village)$/i;
+
+// County subdivisions for one state: covers New England towns and other
+// civil townships not classified as Census "places".
+async function fetchSubdivisions(stateName, fips, apiKey) {
+  try {
+    const url = `https://api.census.gov/data/${CURRENT_ACS_YEAR}/acs/acs5?get=NAME&for=county%20subdivision:*&in=state:${fips}&key=${apiKey}`;
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length < 2) return [];
+    const out = [];
+    for (const row of data.slice(1)) {
+      const beforeComma = String(row[0] || "").split(",")[0].trim();
+      if (/not defined/i.test(beforeComma)) continue;
+      const name = beforeComma.replace(SUBDIVISION_SUFFIX, "").trim();
+      if (!name) continue;
+      out.push({ name, state: stateName, display: `${name}, ${stateName}`, geoType: "county_subdivision" });
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
 async function buildIndex(apiKey) {
   const entries = STATE_NAMES.map(s => ({ state: s, fips: STATE_TO_FIPS[s] })).filter(e => e.fips);
   const BATCH = 8;
   const all = [];
   for (let i = 0; i < entries.length; i += BATCH) {
     const batch = entries.slice(i, i + BATCH);
-    // Fetch both places and counties for each state in the batch.
     const results = await Promise.all(
       batch.flatMap(({ state, fips }) => [
         fetchState(state, fips, apiKey),
         fetchCounties(state, fips, apiKey),
+        fetchSubdivisions(state, fips, apiKey),
       ])
     );
     for (const rows of results) all.push(...rows);
   }
-  all.sort((a, b) => a.display.localeCompare(b.display));
-  return all;
+
+  // Deduplicate: if a name+state already exists as a "place", drop the
+  // county_subdivision entry — the place record is preferred.
+  const placeKeys = new Set(
+    all.filter(e => e.geoType === "place").map(e => `${e.name.toLowerCase()}::${e.state}`)
+  );
+  const deduped = all.filter(e =>
+    e.geoType !== "county_subdivision" || !placeKeys.has(`${e.name.toLowerCase()}::${e.state}`)
+  );
+
+  deduped.sort((a, b) => a.display.localeCompare(b.display));
+  return deduped;
 }
 
 function getIndex(apiKey) {
