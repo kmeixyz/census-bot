@@ -739,7 +739,7 @@ function SourcesBlock({ sources, docMap }) {
 
 // ── Component ────────────────────────────────────────────────────────────────
 export default function ChatPage() {
-  const [mode, setMode] = useState("statistic");
+  const [mode] = useState("auto");
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -781,7 +781,6 @@ export default function ChatPage() {
   }, []);
 
   const atLimit = messages.length >= MAX_EXCHANGES * 2;
-  const activeMode = MODES.find(m => m.id === mode);
 
   useEffect(() => {
     if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
@@ -888,18 +887,10 @@ export default function ChatPage() {
   }
 
   function clearChat() {
-    setMode("statistic");
     setMessages([]);
     setInput("");
     setExpandedChartIndex(null);
     setMinimizedCharts({});
-  }
-
-  function selectMode(modeId) {
-    setMode(modeId);
-    setMessages([]);
-    setInput("");
-    setTimeout(() => textareaRef.current?.focus(), 100);
   }
 
   return (
@@ -916,23 +907,8 @@ export default function ChatPage() {
           <div className={styles.header}>
             <div className={styles.headerLeft}>
               <h1 className={styles.title}>Ask a Question</h1>
-              <p className={styles.subtitle}>{activeMode?.description}</p>
+              <p className={styles.subtitle}>Look up live Census data for any U.S. city or region.</p>
             </div>
-          </div>
-
-          {/* Mode tabs row */}
-          <div className={styles.modeTabs}>
-            {MODES.map(m => (
-              <button
-                key={m.id}
-                type="button"
-                className={`${styles.modeTab} ${mode === m.id ? styles.modeTabActive : ""}`}
-                onClick={() => selectMode(m.id)}
-              >
-                <span className={styles.modeTabIcon}><m.Icon /></span>
-                {m.label}
-              </button>
-            ))}
           </div>
 
           <div className={styles.chatInner}>
@@ -942,7 +918,12 @@ export default function ChatPage() {
                   <div className={styles.emptyStateInner}>
                     <p className={styles.emptyPrompt}>Try one of these to get started</p>
                     <div className={styles.suggestions}>
-                      {(activeMode?.suggestions ?? []).map(s => (
+                      {[
+                        "Median household income in Seattle, Washington?",
+                        "Show rent trends over time in Chicago, Illinois",
+                        "What's the poverty rate in Detroit, Michigan?",
+                        "Compare population of Austin and Dallas, Texas",
+                      ].map(s => (
                         <button key={s} type="button" className={styles.suggestion} onClick={() => sendMessage(s)}>
                           {s}
                         </button>

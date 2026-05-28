@@ -1,5 +1,5 @@
 // pages/index.js — Home
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -25,7 +25,6 @@ function IcoSearch() {
     </svg>
   );
 }
-
 
 const QUICK_LOOKUP_CHIPS = [
   { slug: "income",     label: "Median Income", Icon: IcoDollar },
@@ -139,44 +138,40 @@ export default function Home() {
             </section>
 
             <div className={landing.homeActions}>
-              {/* Search bar replaces the old "Ask a question" link card */}
               <HomeSearchBar />
 
               <section className={landing.quickstart}>
-                <div className={landing.eyebrow}>Quick Lookup</div>
-                <h2 className={landing.quickstartTitle}>What do you want to know about?</h2>
-                <p className={landing.quickstartSub}>
-                  Pick a metric to begin, or pick up where you left off.
-                </p>
-                <div className={landing.chipRow}>
+                <div className={landing.quickstartHeader}>
+                  <div className={landing.eyebrow}>Quick Lookup</div>
+                  <Link href="/explore" className={landing.allMetricsLink}>All 37 metrics →</Link>
+                </div>
+                <h2 className={landing.quickstartTitle}>Popular Metrics</h2>
+                <div className={landing.metricGrid}>
                   {QUICK_LOOKUP_CHIPS.map(chip => (
                     <Link
                       key={chip.slug}
                       href={`/explore?m=${chip.slug}`}
-                      className={landing.chip}
+                      className={landing.metricCard}
                     >
-                      <chip.Icon />
-                      {chip.label}
+                      <div className={landing.metricCardIcon}><chip.Icon /></div>
+                      <span className={landing.metricCardLabel}>{chip.label}</span>
                     </Link>
                   ))}
                 </div>
-                <div className={landing.quickstartFoot}>
-                  <span>Browse all 37 ACS metrics</span>
-                  <Link href="/explore" className={landing.allMetricsBtn}>All metrics →</Link>
-                </div>
               </section>
 
-              <Link className={landing.secondary} href="/learn">
-                <div className={landing.secondaryRow}>
-                  <div>
-                    <div className={landing.secondaryTitle}>Learn more about ACS data</div>
-                    <div className={landing.secondarySub}>
-                      Where the numbers come from, how to read them, and what the 5-year estimates mean.
-                    </div>
-                  </div>
-                  <div className={landing.secondaryArrow} aria-hidden>→</div>
-                </div>
-              </Link>
+              <div className={landing.aboutCard}>
+                <h3 className={landing.aboutCardTitle}>About the Data</h3>
+                <p className={landing.aboutSectionLabel}>Data Source</p>
+                <p className={landing.aboutSectionText}>
+                  All data comes from the U.S. Census Bureau American Community Survey (1-Year and 5-Year Estimates, 2024)
+                </p>
+                <p className={landing.aboutSectionLabel}>Understanding Estimates</p>
+                <p className={landing.aboutSectionText}>
+                  5-year estimates provide the most reliable data for small geographic areas and rare populations
+                </p>
+                <Link href="/learn" className={landing.learnMoreLink}>Learn more →</Link>
+              </div>
             </div>
 
             <footer className={landing.footerNote}>
