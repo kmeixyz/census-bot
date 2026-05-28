@@ -272,7 +272,7 @@ export default function TrendChart({ data, expanded = false, inline = false, sho
 
   // ── SVG geometry ────────────────────────────────────────────────────────────
   const W = 760;
-  const H = expanded ? 380 : 260;
+  const H = expanded ? 342 : 234;
   const PT = 32, PB = 40;
   // Wider left padding for Y-tick labels. Right padding widens for multi-
   // series to give room for the per-line end-of-line value labels (e.g.
@@ -448,62 +448,86 @@ export default function TrendChart({ data, expanded = false, inline = false, sho
                       Label placement: slope-aware so labels never sit on the line.
                       For dense series (>6 pts) we only label first, last, min, max to
                       avoid clutter and overlaps in the middle. */}
-                  {!isMulti && s.points.map((p, i) => {
-                    const x = xs(p.year), y = ys(p.numericValue);
-                    const isHover = hoverYear === p.year;
-                    const isFirst = i === 0;
-                    const isLast = i === s.points.length - 1;
+                  {!isMulti && (() => {
                     const pts = s.points;
-
-                    // For dense series, only label key points.
+                    const vals = pts.map(q => q.numericValue);
+                    const minVal = Math.min(...vals);
+                    const maxVal = Math.max(...vals);
                     const isDense = pts.length > 6;
-                    if (isDense) {
-                      const vals = pts.map(q => q.numericValue);
-                      const minVal = Math.min(...vals);
-                      const maxVal = Math.max(...vals);
+
+                    // Pass 1: which points get a label?
+                    // Dense series: only first, last, min, max — but min/max must be
+                    // at least 2 index steps from the edges so labels don't crowd.
+                    const labeled = pts.map((p, i) => {
+                      if (hoverYear === p.year) return true;
+                      const isFirst = i === 0, isLast = i === pts.length - 1;
+                      if (!isDense) return true;
+                      if (isFirst || isLast) return true;
                       const isMin = p.numericValue === minVal;
                       const isMax = p.numericValue === maxVal;
-                      if (!isFirst && !isLast && !isMin && !isMax && !isHover) {
-                        // Dot only, no label.
-                        return (
-                          <g key={`pt-${p.year}`}>
-                            <circle cx={x} cy={y} r={isHover ? 4.5 : 2.5} fill={color}
-                                    stroke="var(--chart-surface, #fff)" strokeWidth="1.5"/>
-                          </g>
-                        );
+                      if ((isMin || isMax) && i >= 2 && i <= pts.length - 3) return true;
+                      return false;
+                    });
+
+                    // Pass 2: slope-aware initial side for every point.
+                    const sides = pts.map((p, i) => {
+                      const y = ys(p.numericValue);
+                      const isLast = i === pts.length - 1;
+                      let above = isLast
+                        ? (i > 0 ? pts[i].numericValue >= pts[i - 1].numericValue : true)
+                        : pts[i + 1].numericValue < pts[i].numericValue;
+                      if (above && y - 18 < 0) above = false;
+                      if (!above && y + 24 > H) above = true;
+                      return above;
+                    });
+
+                    // Pass 3: anti-collision among labeled points. If two consecutive
+                    // labeled points land on the same side and their label y-coords
+                    // are within 14px, flip the second one.
+                    let prevLabeledIdx = -1;
+                    let prevAbove = null;
+                    const finalSides = sides.map((above, i) => {
+                      if (!labeled[i]) return above;
+                      const y = ys(pts[i].numericValue);
+                      if (prevLabeledIdx >= 0) {
+                        const prevY = ys(pts[prevLabeledIdx].numericValue);
+                        const myLY = above ? y - 14 : y + 22;
+                        const prevLY = prevAbove ? prevY - 14 : prevY + 22;
+                        if (prevAbove === above && Math.abs(myLY - prevLY) < 14) {
+                          const flipped = !above;
+                          if (flipped && y - 18 >= 0) above = flipped;
+                          else if (!flipped && y + 24 <= H) above = flipped;
+                        }
                       }
-                    }
+                      prevLabeledIdx = i;
+                      prevAbove = above;
+                      return above;
+                    });
 
-                    // Slope-aware placement: look at the slope OUT of this point.
-                    // If the next point is higher (line goes up), the space below is
-                    // open — put the label below. If the next point is lower (goes
-                    // down), put the label above. For the last point use slope IN.
-                    let above;
-                    if (isLast) {
-                      above = i > 0 ? pts[i].numericValue >= pts[i - 1].numericValue : true;
-                    } else {
-                      above = pts[i + 1].numericValue < pts[i].numericValue;
-                    }
-                    // Extra safety: if placing above would clip out of the chart top
-                    // (label y would be < PT - 4), flip to below.
-                    if (above && y - 18 < 0) above = false;
-                    if (!above && y + 24 > H) above = true;
-
-                    return (
-                      <g key={`pt-${p.year}`}>
-                        <circle cx={x} cy={y} r={isHover ? 4.5 : 3} fill={color}
-                                stroke="var(--chart-surface, #fff)" strokeWidth="1.5"/>
-                        <text x={x + (isFirst ? 4 : isLast ? -4 : 0)}
-                              y={above ? y - 14 : y + 22}
-                              textAnchor={isFirst ? "start" : isLast ? "end" : "middle"}
-                              fontSize="10" fontWeight={isHover ? 700 : 500}
-                              fill={isHover ? "var(--text)" : "var(--chart-tick)"}
-                              style={{ fontVariantNumeric: "tabular-nums" }}>
-                          {formatValueForMetric(p.numericValue, metric)}
-                        </text>
-                      </g>
-                    );
-                  })}
+                    return pts.map((p, i) => {
+                      const x = xs(p.year), y = ys(p.numericValue);
+                      const isHover = hoverYear === p.year;
+                      const isFirst = i === 0, isLast = i === pts.length - 1;
+                      const showLabel = labeled[i];
+                      const above = finalSides[i];
+                      return (
+                        <g key={`pt-${p.year}`}>
+                          <circle cx={x} cy={y} r={isHover ? 4.5 : showLabel ? 3 : 2.5}
+                                  fill={color} stroke="var(--chart-surface, #fff)" strokeWidth="1.5"/>
+                          {showLabel && (
+                            <text x={x + (isFirst ? 4 : isLast ? -4 : 0)}
+                                  y={above ? y - 14 : y + 22}
+                                  textAnchor={isFirst ? "start" : isLast ? "end" : "middle"}
+                                  fontSize="10" fontWeight={isHover ? 700 : 500}
+                                  fill={isHover ? "var(--text)" : "var(--chart-tick)"}
+                                  style={{ fontVariantNumeric: "tabular-nums" }}>
+                              {formatValueForMetric(p.numericValue, metric)}
+                            </text>
+                          )}
+                        </g>
+                      );
+                    });
+                  })()}
                   {/* Multi-series: dot + end-of-line annotation at the last
                       point. Per-point labels are too crowded with multiple
                       overlapping lines, but the latest reading per series is
