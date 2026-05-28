@@ -18,9 +18,37 @@ import {
   formatMOE,
   buildSourceLabel,
   buildSourceTables,
+  censusTableUrl,
   attachNuancesAndMethodology,
   buildTrendSourceEntry,
 } from "../../lib/sourcing";
+
+// Build a data.census.gov table URL, geo-filtered when geoParams is available.
+function buildCensusTableUrl(tableId, dataset, geoParams) {
+  const vintage = dataset === "acs1"
+    ? `ACSDT1Y${CURRENT_ACS_YEAR}`
+    : dataset === "acs5"
+    ? `ACSDT5Y${CURRENT_ACS_YEAR}`
+    : null;
+  const id = vintage ? `${vintage}.${tableId}` : tableId;
+  const base = `https://data.census.gov/table/${id}`;
+
+  if (!geoParams?.forGeo) return base;
+  const colonIdx = geoParams.forGeo.indexOf(":");
+  const geoType = geoParams.forGeo.slice(0, colonIdx);
+  const geoFips = geoParams.forGeo.slice(colonIdx + 1);
+  const stateFips = geoParams.inGeo ? geoParams.inGeo.split(":")[1] : null;
+
+  let g = null;
+  if (geoType === "place" && stateFips)       g = `160XX00US${stateFips}${geoFips}`;
+  else if (geoType === "county" && stateFips) g = `050XX00US${stateFips}${geoFips}`;
+  else if (geoType === "state")               g = `040XX00US${geoFips}`;
+  else if (geoType.includes("metropolitan statistical area") || geoType.includes("micropolitan"))
+                                              g = `310XX00US${geoFips}`;
+  else if (geoType === "zip code tabulation area") g = `860XX00US${geoFips}`;
+
+  return g ? `${base}?g=${g}` : base;
+}
 import fs from "fs";
 import path from "path";
 
@@ -833,7 +861,7 @@ async function runAcsVariableTool(toolInput) {
         unit: finalUnit,
         source: `${sourceLabel}, U.S. Census Bureau`,
         ...(fallbackReason ? { fallbackReason } : {}),
-        tables: [{ tableId: table_id, url: `https://censusreporter.org/tables/${table_id}/` }],
+        tables: [{ tableId: table_id, url: buildCensusTableUrl(table_id, dataset, parsed.geoParams) }],
       },
     };
   } catch (err) {
@@ -1183,7 +1211,7 @@ async function runBreakdownTool(toolInput) {
     moeFormatted: formatMOE(b.moe, finalUnit),
     unit: finalUnit,
     source: buildSourceLabel(b.dataset, CURRENT_ACS_YEAR) + ", U.S. Census Bureau",
-    tables: [{ tableId: b.tableId, url: `https://censusreporter.org/tables/${b.tableId}/` }],
+    tables: [{ tableId: b.tableId, url: buildCensusTableUrl(b.tableId, b.dataset, geoParams) }],
   }));
 
   // Surface whether all bars came from the same vintage so the chart's
@@ -2162,7 +2190,7 @@ export default async function handler(req, res) {
                   source: result.source,
                   tables: [{
                     tableId: result.table_id,
-                    url: `https://censusreporter.org/tables/${result.table_id}/`,
+                    url: buildCensusTableUrl(result.table_id, result.dataset, null),
                   }],
                   ...(result.fallback_reason ? { fallbackReason: result.fallback_reason } : {}),
                   ...(result.validation_warning ? { validation_warning: result.validation_warning } : {}),
