@@ -1073,7 +1073,7 @@ export default function ChatPage() {
                         onSend={() => sendMessage()}
                         loading={loading}
                         disabled={atLimit}
-                        placeholder={activeMode?.placeholder ?? "Ask a question..."}
+                        placeholder="Ask a question about U.S. Census data…"
                       />
                     </div>
                     <button type="button" className={styles.newChatPill} onClick={clearChat}>
