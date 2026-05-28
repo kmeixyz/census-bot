@@ -389,7 +389,7 @@ export default function ExploreResults() {
   if (!ready) {
     return (
       <>
-        <Head><title>CensusBot — Explore</title><link rel="icon" href="/favicon.ico" /></Head>
+        <Head><title>CensusBot — Explore</title><link rel="icon" type="image/svg+xml" href="/favicon.svg" /></Head>
         <SiteLayout><p className={ex.hint} style={{ marginTop: "3rem" }}>Loading…</p></SiteLayout>
       </>
     );
@@ -400,7 +400,7 @@ export default function ExploreResults() {
       <Head>
         <title>CensusBot — Explore (results)</title>
         <meta name="description" content="View ACS query results and trends." />
-        <link rel="icon" href="/favicon.ico" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
       </Head>
       <SiteLayout>
         <div className={ex.wizardPage}>

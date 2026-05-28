@@ -201,7 +201,7 @@ export default function ExploreLocation() {
   if (!ready) {
     return (
       <>
-        <Head><title>CensusBot — Explore</title><link rel="icon" href="/favicon.ico" /></Head>
+        <Head><title>CensusBot — Explore</title><link rel="icon" type="image/svg+xml" href="/favicon.svg" /></Head>
         <SiteLayout>
           <p className={ex.hint} style={{ marginTop: "3rem" }}>Loading…</p>
         </SiteLayout>
@@ -214,7 +214,7 @@ export default function ExploreLocation() {
       <Head>
         <title>CensusBot — Explore (location)</title>
         <meta name="description" content="Search for a U.S. location to look up ACS data." />
-        <link rel="icon" href="/favicon.ico" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
       </Head>
       <SiteLayout>
         <div className={ex.wizardPage}>

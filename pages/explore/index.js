@@ -217,7 +217,7 @@ export default function ExploreMetrics() {
       <Head>
         <title>CensusBot — Explore (metrics)</title>
         <meta name="description" content="Select ACS metrics to explore." />
-        <link rel="icon" href="/favicon.ico" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
       </Head>
       <SiteLayout>
         <div className={ex.wizardPage}>

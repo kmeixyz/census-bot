@@ -9,7 +9,7 @@ export default function About() {
       <Head>
         <title>CensusBot — About</title>
         <meta name="description" content="About the CensusBot ACS explorer project." />
-        <link rel="icon" href="/favicon.ico" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
       </Head>
       <SiteLayout>
         <header className={landing.aboutHero}>

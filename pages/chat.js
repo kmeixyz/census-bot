@@ -898,7 +898,7 @@ export default function ChatPage() {
       <Head>
         <title>CensusBot — Ask Question</title>
         <meta name="description" content="Ask plain-English questions about U.S. Census ACS data." />
-        <link rel="icon" href="/favicon.ico" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
       </Head>
       <SiteLayout>
         <div className={styles.chatPage}>

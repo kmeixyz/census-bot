@@ -122,7 +122,7 @@ export default function Home() {
       <Head>
         <title>CensusBot — Home</title>
         <meta name="description" content="Explore US Census ACS data with a guided flow." />
-        <link rel="icon" href="/favicon.ico" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
       </Head>
       <SiteLayout>
         <div className={landing.pageWrapper}>

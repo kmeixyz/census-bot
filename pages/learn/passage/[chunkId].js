@@ -38,7 +38,7 @@ export default function Passage() {
     <>
       <Head>
         <title>{`CensusBot — ${data?.doc?.title || "Passage"}`}</title>
-        <link rel="icon" href="/favicon.ico" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
       </Head>
       <SiteLayout>
         <div className={landing.passageWrap}>

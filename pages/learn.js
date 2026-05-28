@@ -146,7 +146,7 @@ export default function Learn() {
           name="description"
           content="Search the official Census Bureau ACS handbooks, methodology, and subject definitions."
         />
-        <link rel="icon" href="/favicon.ico" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
       </Head>
       <SiteLayout>
         <header className={landing.aboutHero}>
