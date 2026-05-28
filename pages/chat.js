@@ -751,20 +751,17 @@ export default function ChatPage() {
   const listRef = useRef(null);
   const textareaRef = useRef(null);
 
-  // Read ?prefill=... — lets external entry points jump straight into the
-  // chat with a partially-typed query.
+  // Read ?prefill=... — auto-submits the question so the user lands directly
+  // in an active chat rather than a pre-filled input.
   const router = useRouter();
   useEffect(() => {
     if (!router.isReady) return;
     const raw = router.query.prefill;
     const prefill = Array.isArray(raw) ? raw[0] : raw;
     if (!prefill) return;
-    setInput(prefill);
-    if (mode === null) setMode("statistic");
-    // Strip the param so a refresh doesn't keep re-prefilling.
+    // Strip the param so a refresh doesn't re-submit.
     router.replace("/chat", undefined, { shallow: true });
-    // Defer focus so the input has rendered.
-    requestAnimationFrame(() => textareaRef.current?.focus());
+    sendMessage(prefill);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router.isReady]);
 

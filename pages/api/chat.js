@@ -2,7 +2,7 @@
 // Server-side Claude chatbot endpoint with Census API tool use.
 // ANTHROPIC_API_KEY is read from .env.local — never exposed to the browser.
 
-export const config = { api: { bodyParser: { sizeLimit: "128kb" } } };
+export const config = { api: { bodyParser: { sizeLimit: "128kb" } }, maxDuration: 60 };
 
 import Anthropic from "@anthropic-ai/sdk";
 import { makeRateLimiter } from "../../lib/rateLimit";
@@ -26,8 +26,8 @@ import path from "path";
 
 const MODEL = "claude-sonnet-4-6";
 const MAX_TOKENS = 1024;
-const LOOP_TIMEOUT_MS = 35_000; // 35s total budget — allows the 30s overload-retry window to run
-const OVERLOAD_RETRY_MS = 30_000; // keep retrying on Anthropic 529 errors for up to 30s per call
+const LOOP_TIMEOUT_MS = 55_000; // 55s total budget (Vercel Pro allows 60s per function)
+const OVERLOAD_RETRY_MS = 15_000; // retry 529 errors for up to 15s — leaves budget for subsequent loop iterations
 // Warn if system prompt exceeds this many chars (~30k tokens ≈ 120k chars)
 const SYSTEM_PROMPT_WARN_CHARS = 80_000;
 
@@ -532,6 +532,14 @@ const MODE_SKILLS = {
     path.join(SKILLS_DIR, "acs-geography", "SKILL.md"),
     path.join(SKILLS_DIR, "acs-temporal-caveats", "SKILL.md"),
   ],
+  auto: [
+    // Unified mode: all skills loaded so Claude can chart, stat, or explain as appropriate
+    path.join(SKILLS_DIR, "acs-react-chart", "SKILL.md"),
+    path.join(SKILLS_DIR, "acs-data-interpreter", "SKILL.md"),
+    path.join(SKILLS_DIR, "acs-geography", "SKILL.md"),
+    path.join(SKILLS_DIR, "acs-temporal-caveats", "SKILL.md"),
+    path.join(SKILLS_DIR, "acs-table-selector", "SKILL.md"),
+  ],
 };
 
 const MODE_PROMPTS = {
@@ -557,6 +565,27 @@ Mode: VISUALIZATION. The user wants charts. Every answer in this mode is a chart
 - If the user's request can't be expressed as a chart (no place, ambiguous metric, etc.), say so in plain text — do NOT call lookup_census_data instead. Charts only.
 - Never provide external API instructions, ACS table guesses, or variable guesses.
 - After the tool calls complete, write 2–3 sentences describing what the chart shows: the key trend, any notable differences between series, and what it means in context. This description appears outside the chart for the user.`,
+  auto: `
+Mode: AUTO. You decide the best response format based on what the user is asking.
+
+WHEN TO LOOK UP A STATISTIC (one or more specific data points, no chart needed):
+- User asks for a number about a place ("What is the median income in Austin?", "What's the poverty rate in Chicago?")
+- Comparison across two or more places at the same point in time ("compare X and Y", "X vs Y") — call lookup_census_data once per place, then write a short text comparison. NEVER call get_census_trend for same-time comparisons.
+
+WHEN TO CHART (call get_census_trend or get_census_breakdown):
+- User asks about change over time ("trend", "over time", "how has X changed", "since 2010", "growth", "decline", "historical") — call get_census_trend
+- User explicitly asks for a chart, graph, or visualization
+- Multi-variable comparison at one place (e.g. "education levels in Boston") — call get_census_trend ONCE PER VARIABLE for the SAME location; the server combines them into a multi-line chart
+- Categorical breakdown at one location (race, language, household type) — call get_census_breakdown
+- After any chart tool calls complete, write 2–3 sentences describing what the data shows: the key trend, notable differences, and context.
+
+WHEN TO SEARCH DOCS (call search_acs_docs FIRST):
+- User asks what something means, how ACS measures it, MOEs, 1-year vs 5-year differences, what a table covers, methodology questions
+
+DEFAULT:
+- Prefer statistic lookups for current data questions; chart only when the question is naturally about trends or change over time.
+- Never call get_census_trend for a single-year value — use lookup_census_data.
+- If you don't have enough information (missing place or metric), ask for clarification rather than guessing.`,
 };
 
 function buildSystemPrompt(userMessage, mode) {
@@ -2001,15 +2030,16 @@ export default async function handler(req, res) {
     // variable lookup. Same shape AlternativesBlock already consumes for income/etc.
     let acsVariableAlternatives = null;
     const loopDeadline = Date.now() + LOOP_TIMEOUT_MS;
-    // Output contract: charts are required only in visualize mode. Statistic
-    // and learn modes always return text replies — keywords don't override that.
+    // Output contract: visualize mode always produces a chart. Auto mode emits
+    // a chart when Claude called trend/breakdown tools; statistic/learn never
+    // produce charts unless the user explicitly requested one via keywords.
     const visualizationRequest = mode === "visualize";
 
     for (let i = 0; i < 5; i++) {
       // Enforce total loop timeout
       const remaining = loopDeadline - Date.now();
       if (remaining <= 0) {
-        return res.status(504).json({ error: "Request timed out. Try a simpler question." });
+        return res.status(504).json({ error: "The response took too long. The AI service may be busy, please try again in a moment." });
       }
 
       const latestUserMsg = getLatestUserMessage(currentMessages);
@@ -2021,7 +2051,7 @@ export default async function handler(req, res) {
       // from training data instead of calling a tool. After iteration 0 we
       // revert to auto so Claude can write the final text reply.
       const userMsgForGate = getLatestUserMessage(currentMessages);
-      const looksLikeDataQuestion = mode === "statistic"
+      const looksLikeDataQuestion = (mode === "statistic" || mode === "auto")
         && i === 0
         && !!extractGeoPhrase(userMsgForGate);
       const toolChoice = looksLikeDataQuestion
@@ -2040,7 +2070,7 @@ export default async function handler(req, res) {
       });
 
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Request timed out. Try a simpler question.")), remaining)
+        setTimeout(() => reject(new Error("The response took too long. The AI service may be busy, please try again in a moment.")), remaining)
       );
 
       const response = await Promise.race([responsePromise, timeoutPromise]);
@@ -2233,7 +2263,11 @@ export default async function handler(req, res) {
     }
     const sourcesField = sources.length > 0 ? { sources } : {};
 
-    if (visualizationRequest) {
+    // In auto mode, emit a chart whenever Claude actually called chart tools.
+    const hasChartData = trendSeries.length > 0 || !!lastBarChart;
+    const emitChart = visualizationRequest || (mode === "auto" && hasChartData);
+
+    if (emitChart) {
       // Bar chart takes precedence when present (Claude explicitly chose
       // categorical breakdown via get_census_breakdown). Trend chart is the
       // default — emit it when get_census_trend produced any series.
@@ -2317,11 +2351,11 @@ export default async function handler(req, res) {
       /overloaded/i.test(err?.message || "");
     if (overloaded) {
       return res.status(503).json({
-        error: "The AI service is overloaded right now — we retried for 30 seconds. Please try again in a minute.",
+        error: "The AI service is overloaded right now — please try again in a moment.",
       });
     }
     const message = err?.message || "Internal server error.";
-    const status = message.includes("timed out") ? 504 : 500;
+    const status = message.includes("took too long") || message.includes("timed out") ? 504 : 500;
     return res.status(status).json({ error: message });
   }
 }

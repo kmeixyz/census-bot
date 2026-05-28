@@ -627,6 +627,328 @@
   }
 }
 
+/* ── Home page search bar ─────────────────────────────────── */
+
+.homeSearchWrap {
+  position: relative;
+}
+
+.searchRow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  padding: 0.6rem 0.6rem 0.6rem 1.1rem;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.searchRowFocused {
+  border-color: var(--accent);
+}
+
+.searchIcon {
+  display: flex;
+  align-items: center;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.searchInput {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 1rem;
+  color: var(--text);
+  font-family: inherit;
+  line-height: 1.4;
+  min-width: 0;
+  padding: 0.2rem 0;
+}
+
+.searchInput:focus,
+.searchInput:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.searchInput::placeholder {
+  color: var(--muted);
+}
+
+.searchSubmitBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1.25rem;
+  border-radius: 999px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+  white-space: nowrap;
+}
+
+.searchSubmitBtn:hover {
+  background: #143664;
+}
+
+:global(html[data-theme="dark"]) .searchSubmitBtn:hover {
+  background: #5b8ec5;
+}
+
+/* Suggestions dropdown */
+.searchDropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  z-index: 50;
+  overflow: hidden;
+}
+
+:global(html[data-theme="dark"]) .searchDropdown {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.searchDropdownLabel {
+  padding: 0.55rem 1rem 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.searchDropdownItem {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  padding: 0.6rem 1rem;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.88rem;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.searchDropdownItem:hover {
+  background: var(--surface-2);
+  color: var(--accent);
+}
+
+.searchDropdownBullet {
+  font-size: 0.75rem;
+  color: var(--accent);
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+
+/* ── Home page unified chat ───────────────────────────────── */
+
+/* Color token re-exports for the home chat; inherit from global theme */
+.homeChatPage {
+  --c-bg: var(--bg);
+  --c-surface: var(--surface);
+  --c-surface-2: var(--surface-2);
+  --c-border: var(--border);
+  --c-border-hover: var(--border-hover);
+  --c-text: var(--text);
+  --c-text-dim: var(--text-dim);
+  --c-muted: var(--muted);
+  --c-accent: var(--accent);
+  --c-accent-soft: var(--badge-bg);
+  --c-accent-glow: var(--accent-glow);
+  --c-bot-bg: var(--accent);
+
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+  color: var(--c-text);
+  font-family: inherit;
+}
+
+/* Empty state — centered search layout */
+.homeChatEmpty {
+  min-height: calc(100vh - 9rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 0 1.5rem;
+}
+
+.homeChatBrand {
+  font-family: var(--font-head);
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--c-accent);
+  margin-bottom: 0.4rem;
+  text-align: center;
+}
+
+.homeChatLead {
+  font-size: 1rem;
+  color: var(--c-muted);
+  text-align: center;
+  margin-bottom: 1.5rem;
+  max-width: 34rem;
+  line-height: 1.5;
+}
+
+.homeChatSearchBar {
+  width: 100%;
+  max-width: 640px;
+  margin-bottom: 1.25rem;
+  position: relative;
+}
+
+.homeChatSuggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  max-width: 640px;
+  margin-bottom: 0;
+}
+
+.homeChatSuggestionChip {
+  padding: 0.6rem 1.1rem;
+  border-radius: 999px;
+  border: 1px solid var(--c-border);
+  background: var(--c-surface);
+  color: var(--c-text-dim);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+  text-align: left;
+}
+
+.homeChatSuggestionChip:hover {
+  color: var(--c-accent);
+  border-color: var(--c-accent);
+  background: var(--c-accent-soft);
+}
+
+/* Active state — message list + sticky input */
+.homeChatActive {
+  padding-bottom: 7rem; /* leave room for sticky input bar height */
+}
+
+.homeChatMessages {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem 0 0.5rem;
+}
+
+.homeChatStickyInput {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  background: var(--bg);
+  padding: 0.75rem 0 0.75rem;
+  border-top: 1px solid var(--c-border);
+}
+
+.homeChatInputRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.65rem;
+}
+
+.homeChatInputMain {
+  flex: 1;
+  min-width: 0;
+}
+
+.homeChatMeta {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding-top: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--c-muted);
+}
+
+.homeChatLimitMsg {
+  font-size: 0.85rem;
+  color: var(--c-muted);
+  text-align: center;
+  padding: 0.65rem 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.homeChatNewChatBtn {
+  padding: 0.42rem 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--c-border);
+  background: var(--c-surface);
+  color: var(--c-text-dim);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.homeChatNewChatBtn:hover {
+  color: var(--c-text);
+  border-color: var(--c-border-hover);
+  background: var(--c-surface-2);
+}
+
+/* Quick lookup section below the chat */
+.homeQuickLookup {
+  margin-top: 2.5rem;
+  padding-top: 1.75rem;
+  border-top: 1px solid var(--border);
+  width: 100%;
+  max-width: 860px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+@media (max-width: 720px) {
+  .homeChatEmpty {
+    min-height: calc(100vh - 7rem);
+    padding: 1.5rem 0 1rem;
+  }
+
+  .homeChatBrand {
+    font-size: 1.5rem;
+  }
+
+  .homeChatActive {
+    padding-bottom: 8rem;
+  }
+}
+
 @media (max-width: 480px) {
   .homeActions {
     gap: 0.85rem;

@@ -1,6 +1,8 @@
 // pages/index.js — Home
+import { useState, useRef, useCallback } from "react";
 import Head from "next/head";
 import Link from "next/link";
+import { useRouter } from "next/router";
 import SiteLayout from "../components/SiteLayout";
 import landing from "../styles/Landing.module.css";
 
@@ -15,6 +17,16 @@ function IcoBrief()    { return <svg {...S}><rect x="2" y="7" width="20" height=
 function IcoGrad()     { return <svg {...S}><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>; }
 function IcoHouse()    { return <svg {...S}><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>; }
 
+function IcoSearch() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="8"/>
+      <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+  );
+}
+
+
 const QUICK_LOOKUP_CHIPS = [
   { slug: "income",     label: "Median Income", Icon: IcoDollar },
   { slug: "rent",       label: "Rent",          Icon: IcoKey },
@@ -25,6 +37,85 @@ const QUICK_LOOKUP_CHIPS = [
   { slug: "education",  label: "Education",     Icon: IcoGrad },
   { slug: "housing",    label: "Housing",       Icon: IcoHouse },
 ];
+
+const SUGGESTIONS = [
+  "What's the median income in Austin, TX?",
+  "Show me population growth in Seattle",
+  "Compare rent prices between NYC and San Francisco",
+  "What's the poverty rate in Chicago?",
+  "Education levels in Boston, MA",
+];
+
+function HomeSearchBar() {
+  const [query, setQuery]     = useState("");
+  const [focused, setFocused] = useState(false);
+  const inputRef = useRef(null);
+  const router   = useRouter();
+
+  function go(text) {
+    const q = (text ?? query).trim();
+    if (!q) return;
+    router.push(`/chat?prefill=${encodeURIComponent(q)}`);
+  }
+
+  function handleKeyDown(e) {
+    if (e.key === "Enter") go();
+  }
+
+  function handleSuggestionMouseDown(e, suggestion) {
+    e.preventDefault();
+    go(suggestion);
+  }
+
+  const showSuggestions = focused && query.trim() === "";
+
+  return (
+    <div className={landing.homeSearchWrap}>
+      <div className={`${landing.searchRow} ${focused ? landing.searchRowFocused : ""}`}>
+        <span className={landing.searchIcon}><IcoSearch /></span>
+        <input
+          ref={inputRef}
+          type="text"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          onKeyDown={handleKeyDown}
+          placeholder="e.g., What's the median rent in Austin?"
+          className={landing.searchInput}
+          aria-label="Ask a question about Census data"
+          autoComplete="off"
+        />
+        <button
+          type="button"
+          onClick={() => go()}
+          className={landing.searchSubmitBtn}
+          aria-label="Submit question"
+        >
+          Search
+        </button>
+      </div>
+
+      {showSuggestions && (
+        <div className={landing.searchDropdown} role="listbox" aria-label="Suggested questions">
+          <div className={landing.searchDropdownLabel}>Try asking…</div>
+          {SUGGESTIONS.map(s => (
+            <button
+              key={s}
+              type="button"
+              role="option"
+              className={landing.searchDropdownItem}
+              onMouseDown={e => handleSuggestionMouseDown(e, s)}
+            >
+              <span className={landing.searchDropdownBullet}>↗</span>
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Home() {
   return (
@@ -49,6 +140,9 @@ export default function Home() {
             </section>
 
             <div className={landing.homeActions}>
+              {/* Search bar replaces the old "Ask a question" link card */}
+              <HomeSearchBar />
+
               <section className={landing.quickstart}>
                 <div className={landing.eyebrow}>Quick Lookup</div>
                 <h2 className={landing.quickstartTitle}>What do you want to know about?</h2>
@@ -72,19 +166,6 @@ export default function Home() {
                   <Link href="/explore" className={landing.allMetricsBtn}>All metrics →</Link>
                 </div>
               </section>
-
-              <Link className={landing.secondary} href="/chat">
-                <div className={landing.secondaryRow}>
-                  <div>
-                    <div className={landing.secondaryTitle}>Ask a question</div>
-                    <div className={landing.secondarySub}>
-                      Type a question in plain English, like &ldquo;What&apos;s the median rent in Austin?&rdquo;
-                      Or ask for charts and visualizations.
-                    </div>
-                  </div>
-                  <div className={landing.secondaryArrow} aria-hidden>→</div>
-                </div>
-              </Link>
 
               <Link className={landing.secondary} href="/learn">
                 <div className={landing.secondaryRow}>
