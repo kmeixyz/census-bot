@@ -590,6 +590,7 @@ export default async function handler(req, res) {
     points,
     ...(seriesWarning ? { seriesWarning } : {}),
     locationLabel,
+    geoParams,
     unit: cleanShareOf ? SHARE_FORMAT : variable.format,
     variableId: variable.id,
     variableLabel: variable.label,

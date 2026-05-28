@@ -18,10 +18,25 @@ import {
   formatMOE,
   buildSourceLabel,
   buildSourceTables,
+  tableIdOf,
   censusTableUrl,
   attachNuancesAndMethodology,
   buildTrendSourceEntry,
 } from "../../lib/sourcing";
+import { getRateDenominator } from "../../lib/censusRates";
+
+// Strip em dashes from Claude's text replies. Handles three cases:
+//  "X — Y"   → "X. Y"   (clause connector → two sentences)
+//  "**X** — Y"  → "**X**: Y"  (list descriptor → colon separator)
+//  "X —\n"   → "X.\n"  (trailing em dash)
+function stripEmDashes(text) {
+  if (!text) return text;
+  return text
+    .replace(/(\*\*[^*]+\*\*)\s+—\s+/g, "$1: ")   // **bold** — desc → **bold**: desc
+    .replace(/\s+—\s+/g, ". ")                      // clause connector → period + space
+    .replace(/\s+—\n/g, ".\n")                      // trailing em dash before newline
+    .replace(/—\s*/g, ". ");                         // any remaining
+}
 
 // Build a data.census.gov table URL, geo-filtered when geoParams is available.
 function buildCensusTableUrl(tableId, dataset, geoParams) {
@@ -49,6 +64,20 @@ function buildCensusTableUrl(tableId, dataset, geoParams) {
 
   return g ? `${base}?g=${g}` : base;
 }
+
+// Like buildSourceTables but produces geo-filtered data.census.gov URLs using
+// buildCensusTableUrl. Preserves the multi-table behavior (numerator + denominator
+// when a rate variable has a companion table in a different ACS table series).
+function buildGeoSourceTables(variableId, dataset, geoParams) {
+  const tables = new Set([tableIdOf(variableId)]);
+  const denom = getRateDenominator(variableId);
+  if (denom) tables.add(tableIdOf(denom));
+  return Array.from(tables).map((tableId) => ({
+    tableId,
+    url: buildCensusTableUrl(tableId, dataset, geoParams),
+  }));
+}
+
 import fs from "fs";
 import path from "path";
 
@@ -539,7 +568,15 @@ Formatting rules (strictly follow these):
 - Lead with the number, then one sentence of context if useful. That's it.
 - Don't make up numbers — always use the tool for specific statistics.
 - If a metric or location isn't supported, say so in one sentence and suggest the closest option.
-- If a tool call returns an error: respond with ONE short sentence explaining what went wrong and a clarifying question so the user can correct it. Do not retry the same call. Never give a generic non-answer — explain the specific problem.`
+- If a tool call returns an error: respond with ONE short sentence explaining what went wrong and a clarifying question so the user can correct it. Do not retry the same call. Never give a generic non-answer — explain the specific problem.
+
+Writing style (apply to every response you write):
+- NEVER use em dashes (—) anywhere in your response. This is absolute. Replace every em dash with a period, comma, or parentheses. "X — Y" becomes "X. Y" or "X, Y".
+- No opener phrases: never start with "Great", "Of course", "Certainly!", "Sure!", "Absolutely", "Happy to", "Thanks for", or any filler acknowledgment. Start with the actual answer.
+- Use contractions: don't, won't, can't, it's, that's.
+- Vary sentence length. Short sentences hit hard. Follow with a longer one when context is needed.
+- Plain words over formal ones: "use" not "utilize", "show" not "demonstrate", "about" not "approximately".
+- Delete hedging: remove "perhaps", "potentially", "it could be said", "it's worth noting".`
 
 // ── Mode-specific skill routing ─────────────────────────────────────────────
 const MODE_SKILLS = {
@@ -609,6 +646,12 @@ WHEN TO CHART (call get_census_trend or get_census_breakdown):
 
 WHEN TO SEARCH DOCS (call search_acs_docs FIRST):
 - User asks what something means, how ACS measures it, MOEs, 1-year vs 5-year differences, what a table covers, methodology questions
+
+WHEN TO ANSWER IN PLAIN TEXT (no tool call needed):
+- Visualization planning or advice ("How should I visualize...", "Help me plan a chart", "What chart type should I use") — answer with concrete suggestions; if they want actual data, ask for a specific location
+- Questions about CensusBot capabilities ("Can you make maps?", "What can you show me?") — answer directly; note that maps are not supported but trend and bar charts are
+- "Migration" questions that are ambiguous — clarify whether they mean domestic migration (people moving between states/counties) or international/immigration, and which geography they want, before fetching data
+- General Census/ACS questions without a specific metric or location — answer from knowledge, no tool needed
 
 DEFAULT:
 - Prefer statistic lookups for current data questions; chart only when the question is naturally about trends or change over time.
@@ -958,7 +1001,7 @@ async function runCensusTool(toolInput) {
         unit: finalFormat,
         source: `${sourceLabel}, U.S. Census Bureau`,
         ...(fallbackReason ? { fallbackReason } : {}),
-        tables: buildSourceTables(variable.id),
+        tables: buildGeoSourceTables(variable.id, dataset, geoParams),
       },
     };
   } catch (err) {
@@ -1501,7 +1544,7 @@ async function performPickedLookup({ pickedGeo, pickedMetric, userMsg }) {
       geoType: pickedGeo?.geoType || "place",
       dataset,
       source: sourceLabel,
-      tables: buildSourceTables(variable.id),
+      tables: buildGeoSourceTables(variable.id, dataset, geoParams),
       ...(fallbackReason ? { fallbackReason } : {}),
     },
   };
@@ -1960,7 +2003,7 @@ async function handleStatisticModeFastPath(req, res, userMsg, mode, opts = {}) {
     unit: format,
     dataset,
     source: buildSourceLabel(dataset, CURRENT_ACS_YEAR),
-    tables: buildSourceTables(variable.id),
+    tables: buildGeoSourceTables(variable.id, dataset, geoParams),
     ...(fallbackReason ? { fallbackReason } : {}),
   };
   await attachNuancesAndMethodology(structured, variable.id);
@@ -2108,9 +2151,9 @@ export default async function handler(req, res) {
 
       if (response.stop_reason === "end_turn" || response.stop_reason === "max_tokens") {
         const textBlock = response.content.find(b => b.type === "text");
-        finalReply = textBlock ? textBlock.text : null;
+        finalReply = stripEmDashes(textBlock ? textBlock.text : null);
         if (!finalReply && response.stop_reason === "max_tokens") {
-          finalReply = "Response was cut off — try asking a more specific question.";
+          finalReply = "Response was cut off. Try asking a more specific question.";
         }
         break;
       }
@@ -2170,6 +2213,7 @@ export default async function handler(req, res) {
                   variableLabel: result.variableLabel,
                   unit: result.unit,
                   tableId: result.tableId,
+                  geoParams: result.geoParams || null,
                 });
                 if (trendEntry) sources.push(trendEntry);
               }
@@ -2188,7 +2232,7 @@ export default async function handler(req, res) {
                   moe: result.moe,
                   dataset: result.dataset,
                   source: result.source,
-                  tables: [{
+                  tables: result._sourceEntry?.tables || [{
                     tableId: result.table_id,
                     url: buildCensusTableUrl(result.table_id, result.dataset, null),
                   }],
@@ -2268,11 +2312,11 @@ export default async function handler(req, res) {
           model: MODEL,
           max_tokens: MAX_TOKENS,
           system: buildSystemPrompt(latestUserMsg, mode) +
-            '\n\nNote: live data lookup is unavailable. Respond exactly: "I don’t have time-series Census access for that request yet."',
+            "\n\nNote: live data tools are temporarily unavailable. Answer the user’s question helpfully in plain text — if it was a specific data request, acknowledge you couldn’t retrieve it and suggest they try rephrasing. If it was a general or planning question, answer it directly from your knowledge.",
           messages,  // use original messages, not the tool-augmented ones
         });
         const textBlock = fallbackResponse.content.find(b => b.type === "text");
-        finalReply = textBlock?.text || "I wasn't able to retrieve that data right now. Please try again.";
+        finalReply = stripEmDashes(textBlock?.text) || "I wasn't able to retrieve that data right now. Please try again.";
       } catch (fallbackErr) {
         console.error("[chat] Fallback call failed:", fallbackErr);
         finalReply = "I wasn't able to retrieve that data right now. Please try again.";
