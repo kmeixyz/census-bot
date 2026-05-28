@@ -16,15 +16,120 @@
   --c-bot-bg: var(--accent);
 
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   height: calc(100vh - 7.5rem);
   max-height: calc(100vh - 7.5rem);
   padding: 0;
   margin: -1.25rem auto 0;
-  max-width: 980px;
+  max-width: 100%;
   width: 100%;
   font-family: inherit;
   color: var(--c-text);
+  gap: 0;
+}
+
+/* ── Sidebar ──────────────────────────────────────────────── */
+.chatSidebar {
+  width: 240px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--c-border);
+  height: 100%;
+  overflow: hidden;
+}
+
+.sidebarTop {
+  padding: 0.85rem 0.75rem 0.6rem;
+  flex-shrink: 0;
+}
+
+.newChatBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--c-border);
+  background: transparent;
+  color: var(--c-text);
+  font-size: 0.85rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-align: left;
+}
+
+.newChatBtn:hover {
+  background: var(--c-surface-2);
+}
+
+.sidebarList {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.25rem 0.5rem 1rem;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.sidebarList:hover {
+  scrollbar-color: var(--c-border) transparent;
+}
+
+.sidebarItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.sidebarItem:hover {
+  background: var(--c-surface-2);
+}
+
+.sidebarItemActive {
+  background: var(--c-accent-soft);
+}
+
+.sidebarItemTitle {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--c-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  max-width: 100%;
+}
+
+.sidebarItemTime {
+  font-size: 0.72rem;
+  color: var(--c-muted);
+}
+
+.sidebarEmpty {
+  font-size: 0.8rem;
+  color: var(--c-muted);
+  padding: 1rem 0.65rem;
+}
+
+/* ── Chat main area ───────────────────────────────────────── */
+.chatMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding-left: 1.75rem;
 }
 
 :global(html[data-theme="dark"]) .chatPage {
@@ -680,6 +785,16 @@
   width: 100%;
   height: 100%;
   overflow: auto;
+}
+
+@media (max-width: 720px) {
+  .chatSidebar {
+    display: none;
+  }
+
+  .chatMain {
+    padding-left: 0;
+  }
 }
 
 .chartMinimizeBtn {

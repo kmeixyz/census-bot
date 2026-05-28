@@ -737,6 +737,44 @@ function SourcesBlock({ sources, docMap }) {
   );
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function timeAgo(ts) {
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(ts).toLocaleDateString();
+}
+
+function IcoCompose() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 20h9"/>
+      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+    </svg>
+  );
+}
+
+const STORAGE_KEY = "censusbot_conversations";
+
+function loadConversations() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+  } catch { return []; }
+}
+
+function saveConversation(id, msgs) {
+  const title = msgs.find(m => m.role === "user")?.content?.slice(0, 70) ?? "Conversation";
+  const entry = { id, title, updatedAt: Date.now(), messages: msgs.slice(-30) };
+  const updated = [entry, ...loadConversations().filter(c => c.id !== id)].slice(0, 20);
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(updated)); } catch {}
+  return updated;
+}
+
 // ── Component ────────────────────────────────────────────────────────────────
 export default function ChatPage() {
   const [mode] = useState("auto");
@@ -745,21 +783,55 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(false);
   const [expandedChartIndex, setExpandedChartIndex] = useState(null);
   const [minimizedCharts, setMinimizedCharts] = useState({});
+  const [conversations, setConversations] = useState([]);
+  const [conversationId, setConversationId] = useState(() => `conv_${Date.now()}`);
   // doc_id → { title, has_pdf } for resolving chunk-id citations to readable titles.
   // Loaded once on first ACS-cited message; index endpoint gracefully degrades if absent.
   const [docMap, setDocMap] = useState(() => new Map());
   const listRef = useRef(null);
   const textareaRef = useRef(null);
+  const prevLoadingRef = useRef(false);
+  const messagesRef = useRef(messages);
 
-  // Read ?prefill=... — auto-submits the question so the user lands directly
-  // in an active chat rather than a pre-filled input.
+  // Keep messagesRef in sync without adding messages to the save effect deps.
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
+
+  // Load conversation history from localStorage once on mount.
+  useEffect(() => {
+    setConversations(loadConversations());
+  }, []);
+
+  // Auto-save after each completed AI response.
+  useEffect(() => {
+    if (prevLoadingRef.current && !loading && messagesRef.current.length > 0) {
+      const updated = saveConversation(conversationId, messagesRef.current);
+      setConversations(updated);
+    }
+    prevLoadingRef.current = loading;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
+  // Read ?prefill=... or ?resume=... on first load.
   const router = useRouter();
   useEffect(() => {
     if (!router.isReady) return;
+
+    // Resume a saved conversation.
+    const resumeId = router.query.resume;
+    if (resumeId) {
+      const conv = loadConversations().find(c => c.id === resumeId);
+      if (conv) {
+        setConversationId(conv.id);
+        setMessages(conv.messages);
+      }
+      router.replace("/chat", undefined, { shallow: true });
+      return;
+    }
+
+    // Auto-submit a prefilled question.
     const raw = router.query.prefill;
     const prefill = Array.isArray(raw) ? raw[0] : raw;
     if (!prefill) return;
-    // Strip the param so a refresh doesn't re-submit.
     router.replace("/chat", undefined, { shallow: true });
     sendMessage(prefill);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -891,6 +963,17 @@ export default function ChatPage() {
     setInput("");
     setExpandedChartIndex(null);
     setMinimizedCharts({});
+    setConversationId(`conv_${Date.now()}`);
+    setTimeout(() => textareaRef.current?.focus(), 50);
+  }
+
+  function resumeConversation(conv) {
+    setConversationId(conv.id);
+    setMessages(conv.messages);
+    setInput("");
+    setExpandedChartIndex(null);
+    setMinimizedCharts({});
+    setTimeout(() => textareaRef.current?.focus(), 50);
   }
 
   return (
@@ -902,6 +985,35 @@ export default function ChatPage() {
       </Head>
       <SiteLayout>
         <div className={styles.chatPage}>
+
+          {/* Sidebar */}
+          <div className={styles.chatSidebar}>
+            <div className={styles.sidebarTop}>
+              <button type="button" className={styles.newChatBtn} onClick={clearChat}>
+                <IcoCompose /> New chat
+              </button>
+            </div>
+            <div className={styles.sidebarList}>
+              {conversations.length === 0 ? (
+                <p className={styles.sidebarEmpty}>No conversations yet</p>
+              ) : (
+                conversations.map(conv => (
+                  <button
+                    key={conv.id}
+                    type="button"
+                    className={`${styles.sidebarItem} ${conv.id === conversationId ? styles.sidebarItemActive : ""}`}
+                    onClick={() => resumeConversation(conv)}
+                  >
+                    <span className={styles.sidebarItemTitle}>{conv.title}</span>
+                    <span className={styles.sidebarItemTime}>{timeAgo(conv.updatedAt)}</span>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Main chat area */}
+          <div className={styles.chatMain}>
 
           {/* Header */}
           <div className={styles.header}>
@@ -1076,14 +1188,12 @@ export default function ChatPage() {
                         placeholder="Ask a question about U.S. Census data…"
                       />
                     </div>
-                    <button type="button" className={styles.newChatPill} onClick={clearChat}>
-                      New Chat
-                    </button>
                   </div>
                 )}
                 <div className={styles.msgCounter}>{Math.floor(messages.length / 2)} / {MAX_EXCHANGES} messages used</div>
               </div>
             </div>
+          </div>{/* end chatMain */}
         </div>
       </SiteLayout>
     </>
