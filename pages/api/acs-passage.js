@@ -4,8 +4,17 @@
 // GET ?id=<chunk_id> → { doc, focal, prev, next }
 
 import { getPassageWithContext } from "../../lib/acsRag";
+import { makeRateLimiter } from "../../lib/rateLimit";
+
+const acsPassageRateLimiter = makeRateLimiter({ windowMs: 60_000, max: 60 });
 
 export default async function handler(req, res) {
+  const rl = acsPassageRateLimiter(req);
+  if (!rl.ok) {
+    res.setHeader("Retry-After", String(rl.retryAfter));
+    return res.status(429).json({ error: "Too many requests. Please wait a moment and try again." });
+  }
+
   try {
     if (req.method !== "GET") {
       res.setHeader("Allow", "GET");

@@ -3,6 +3,9 @@
 // Builds a global in-memory index on first call (lazy, cached 24h).
 
 import { CURRENT_ACS_YEAR, STATE_NAMES } from "../../lib/censusConstants";
+import { makeRateLimiter } from "../../lib/rateLimit";
+
+const searchPlacesRateLimiter = makeRateLimiter({ windowMs: 60_000, max: 60 });
 
 const PLACE_TYPE_SUFFIX = /\s+(city|town|village|cdp|borough|township|charter township|municipality|unified government|consolidated government|metro government|urban county|metropolitan government)$/i;
 
@@ -103,6 +106,12 @@ function getIndex(apiKey) {
 
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
+
+  const rl = searchPlacesRateLimiter(req);
+  if (!rl.ok) {
+    res.setHeader("Retry-After", String(rl.retryAfter));
+    return res.status(429).json({ error: "Too many requests. Please wait a moment and try again." });
+  }
 
   const q = String(req.query.q || "").trim().slice(0, 100);
   if (q.length < 2) return res.status(200).json({ results: [] });

@@ -2037,12 +2037,25 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "No messages provided." });
   }
 
+  // Cap conversation history size to prevent context exhaustion attacks.
+  const MAX_MESSAGES = 50;
+  if (messages.length > MAX_MESSAGES) {
+    return res.status(400).json({ error: "Too many messages in conversation history." });
+  }
+
   // Cap individual message content length to prevent oversized prompts.
   const MAX_MSG_LENGTH = 4000;
   for (const m of messages) {
     if (typeof m.content === "string" && m.content.length > MAX_MSG_LENGTH) {
       return res.status(400).json({ error: "Message content too long." });
     }
+  }
+
+  // Hard cap on total conversation size to prevent context exhaustion.
+  const MAX_TOTAL_CHARS = 100_000;
+  const totalChars = messages.reduce((sum, m) => sum + (typeof m.content === "string" ? m.content.length : 0), 0);
+  if (totalChars > MAX_TOTAL_CHARS) {
+    return res.status(400).json({ error: "Conversation history is too large." });
   }
 
   if (!process.env.ANTHROPIC_API_KEY) {

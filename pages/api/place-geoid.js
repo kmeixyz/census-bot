@@ -1,6 +1,9 @@
 // pages/api/place-geoid.js
 // Returns the 7-digit Census GEOID for a city + state by querying the ACS API.
 import { STATE_FIPS } from "../../lib/censusTranslator";
+import { makeRateLimiter } from "../../lib/rateLimit";
+
+const placeGeoidRateLimiter = makeRateLimiter({ windowMs: 60_000, max: 60 });
 
 const PLACE_TYPE_SUFFIX = /\s+(city|town|village|cdp|borough|township|charter township|municipality|unified government|consolidated government|metro government|urban county|metropolitan government)$/i;
 
@@ -29,6 +32,12 @@ const cache = new Map();
 export default async function handler(req, res) {
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  const rl = placeGeoidRateLimiter(req);
+  if (!rl.ok) {
+    res.setHeader("Retry-After", String(rl.retryAfter));
+    return res.status(429).json({ error: "Too many requests. Please wait a moment and try again." });
   }
 
   const { city, state } = req.query;

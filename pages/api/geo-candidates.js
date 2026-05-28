@@ -4,9 +4,18 @@
 // flow to ask the user which scope they meant.
 
 import { findGeoCandidates, findZctaByZip, describeCandidate } from "../../lib/geoCandidates";
+import { makeRateLimiter } from "../../lib/rateLimit";
+
+const geoCandidatesRateLimiter = makeRateLimiter({ windowMs: 60_000, max: 60 });
 
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
+
+  const rl = geoCandidatesRateLimiter(req);
+  if (!rl.ok) {
+    res.setHeader("Retry-After", String(rl.retryAfter));
+    return res.status(429).json({ error: "Too many requests. Please wait a moment and try again." });
+  }
 
   const name = String(req.query.name || "").trim().slice(0, 100);
   const state = req.query.state ? String(req.query.state).trim().slice(0, 50) : null;

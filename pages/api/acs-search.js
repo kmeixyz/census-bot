@@ -5,8 +5,17 @@ export const config = { api: { bodyParser: { sizeLimit: "16kb" } } };
 // GET  ?action=docs    → { docs: [...] }     (used to render the doc directory)
 
 import { searchAcsDocs, getDocList } from "../../lib/acsRag";
+import { makeRateLimiter } from "../../lib/rateLimit";
+
+const acsSearchRateLimiter = makeRateLimiter({ windowMs: 60_000, max: 30 });
 
 export default async function handler(req, res) {
+  const rl = acsSearchRateLimiter(req);
+  if (!rl.ok) {
+    res.setHeader("Retry-After", String(rl.retryAfter));
+    return res.status(429).json({ error: "Too many requests. Please wait a moment and try again." });
+  }
+
   try {
     if (req.method === "GET" && req.query.action === "docs") {
       const docs = await getDocList();
