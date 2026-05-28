@@ -129,13 +129,12 @@ export default function Home() {
         <div className={landing.pageWrapper}>
           <div className={landing.pageContent}>
             <section className={landing.hero}>
-              <h1 className={landing.title}>CensusBot</h1>
-              <p className={landing.leadStrong}>
-                Ask questions about U.S. community data in natural language.
+              <p className={landing.heroHeading}>
+                Ask questions about U.S. community data
+                <span className={landing.heroAccent}>in natural language</span>
               </p>
-              <p className={landing.lead}>
-                Explore information from the American Community Survey (ACS). Choose a place,
-                view key statistics, and track changes over time.
+              <p className={landing.heroSub}>
+                Explore demographics, housing, income, and more across American communities
               </p>
             </section>
 
