@@ -272,8 +272,8 @@ export default function TrendChart({ data, expanded = false, inline = false, sho
 
   // ── SVG geometry ────────────────────────────────────────────────────────────
   const W = 760;
-  const H = expanded ? 380 : 320;
-  const PT = 36, PB = 44;
+  const H = expanded ? 380 : 260;
+  const PT = 32, PB = 40;
   // Wider left padding for Y-tick labels. Right padding widens for multi-
   // series to give room for the per-line end-of-line value labels (e.g.
   // "$2,997" rendered to the right of each line's last dot).
@@ -334,7 +334,7 @@ export default function TrendChart({ data, expanded = false, inline = false, sho
     opacity: visible ? 1 : 0,
     transform: visible ? "translateY(0)" : "translateY(8px)",
     transition: "opacity 0.5s ease, transform 0.5s ease",
-    padding: inline ? 0 : "20px 24px",
+    padding: inline ? 0 : "16px 20px",
     background: "var(--chart-surface, #ffffff)",
     color: "var(--text)",
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif',
@@ -373,8 +373,8 @@ export default function TrendChart({ data, expanded = false, inline = false, sho
       {/* Lede — integrated subtitle with delta + ACS framing. */}
       {!inline && lede && lede.multi && (
         <p style={{
-          fontSize: 13, lineHeight: 1.55, color: "var(--chart-tick)",
-          margin: "0 0 14px", maxWidth: 640,
+          fontSize: 12, lineHeight: 1.5, color: "var(--chart-tick)",
+          margin: "0 0 10px", maxWidth: 640,
         }}>
           Comparing <strong style={{ color: "var(--text)" }}>{visibleSeries.length} {singlePlace ? "measures" : "places"}</strong>{" "}
           ({lede.labels}) from {lede.lo} to {lede.hi}. Annual estimates from the 5-year ACS rolling sample.
@@ -382,8 +382,8 @@ export default function TrendChart({ data, expanded = false, inline = false, sho
       )}
       {!inline && lede && !lede.multi && (
         <p style={{
-          fontSize: 13, lineHeight: 1.55, color: "var(--chart-tick)",
-          margin: "0 0 14px", maxWidth: 640,
+          fontSize: 12, lineHeight: 1.5, color: "var(--chart-tick)",
+          margin: "0 0 10px", maxWidth: 640,
         }}>
           {lede.delta != null ? (
             <>
@@ -412,7 +412,7 @@ export default function TrendChart({ data, expanded = false, inline = false, sho
         <div style={{ position: "relative" }}>
           <svg
             viewBox={`0 0 ${W} ${H}`}
-            style={{ width: "100%", height: "auto", display: "block", overflow: "visible" }}
+            style={{ width: "100%", height: "auto", display: "block", overflow: "hidden" }}
             onMouseLeave={() => setHoverYear(null)}
           >
             {/* Vertical grid at every year (very faint). */}
@@ -444,19 +444,57 @@ export default function TrendChart({ data, expanded = false, inline = false, sho
                 <g key={`line-${s.label}-${sIdx}`}>
                   <path d={linePath} fill="none" stroke={color} strokeWidth="1.75"
                         strokeLinejoin="round" strokeLinecap="round"/>
-                  {/* Per-point dots + value labels (single-series only — multi gets too crowded) */}
+                  {/* Per-point dots + value labels (single-series only — multi gets too crowded).
+                      Label placement: slope-aware so labels never sit on the line.
+                      For dense series (>6 pts) we only label first, last, min, max to
+                      avoid clutter and overlaps in the middle. */}
                   {!isMulti && s.points.map((p, i) => {
-                    const above = i % 2 === 0;
                     const x = xs(p.year), y = ys(p.numericValue);
                     const isHover = hoverYear === p.year;
                     const isFirst = i === 0;
                     const isLast = i === s.points.length - 1;
+                    const pts = s.points;
+
+                    // For dense series, only label key points.
+                    const isDense = pts.length > 6;
+                    if (isDense) {
+                      const vals = pts.map(q => q.numericValue);
+                      const minVal = Math.min(...vals);
+                      const maxVal = Math.max(...vals);
+                      const isMin = p.numericValue === minVal;
+                      const isMax = p.numericValue === maxVal;
+                      if (!isFirst && !isLast && !isMin && !isMax && !isHover) {
+                        // Dot only, no label.
+                        return (
+                          <g key={`pt-${p.year}`}>
+                            <circle cx={x} cy={y} r={isHover ? 4.5 : 2.5} fill={color}
+                                    stroke="var(--chart-surface, #fff)" strokeWidth="1.5"/>
+                          </g>
+                        );
+                      }
+                    }
+
+                    // Slope-aware placement: look at the slope OUT of this point.
+                    // If the next point is higher (line goes up), the space below is
+                    // open — put the label below. If the next point is lower (goes
+                    // down), put the label above. For the last point use slope IN.
+                    let above;
+                    if (isLast) {
+                      above = i > 0 ? pts[i].numericValue >= pts[i - 1].numericValue : true;
+                    } else {
+                      above = pts[i + 1].numericValue < pts[i].numericValue;
+                    }
+                    // Extra safety: if placing above would clip out of the chart top
+                    // (label y would be < PT - 4), flip to below.
+                    if (above && y - 18 < 0) above = false;
+                    if (!above && y + 24 > H) above = true;
+
                     return (
                       <g key={`pt-${p.year}`}>
                         <circle cx={x} cy={y} r={isHover ? 4.5 : 3} fill={color}
                                 stroke="var(--chart-surface, #fff)" strokeWidth="1.5"/>
                         <text x={x + (isFirst ? 4 : isLast ? -4 : 0)}
-                              y={above ? y - 12 : y + 21}
+                              y={above ? y - 14 : y + 22}
                               textAnchor={isFirst ? "start" : isLast ? "end" : "middle"}
                               fontSize="10" fontWeight={isHover ? 700 : 500}
                               fill={isHover ? "var(--text)" : "var(--chart-tick)"}
@@ -617,7 +655,7 @@ export default function TrendChart({ data, expanded = false, inline = false, sho
       {/* Range chips — narrow the visible window without re-fetching. */}
       {!inline && allYears.length > 2 && (
         <div style={{
-          marginTop: 14, padding: "8px 0",
+          marginTop: 10, padding: "6px 0",
           borderTop: "1px solid var(--chart-grid)",
           borderBottom: "1px solid var(--chart-grid)",
           display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap",
