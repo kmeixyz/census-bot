@@ -272,8 +272,8 @@ export default function TrendChart({ data, expanded = false, inline = false, sho
 
   // ── SVG geometry ────────────────────────────────────────────────────────────
   const W = 760;
-  const H = expanded ? 342 : 234;
-  const PT = 32, PB = 40;
+  const H = expanded ? 240 : 150;
+  const PT = 20, PB = 24;
   // Wider left padding for Y-tick labels. Right padding widens for multi-
   // series to give room for the per-line end-of-line value labels (e.g.
   // "$2,997" rendered to the right of each line's last dot).
@@ -334,7 +334,7 @@ export default function TrendChart({ data, expanded = false, inline = false, sho
     opacity: visible ? 1 : 0,
     transform: visible ? "translateY(0)" : "translateY(8px)",
     transition: "opacity 0.5s ease, transform 0.5s ease",
-    padding: inline ? 0 : "16px 20px",
+    padding: inline ? 0 : "10px 16px",
     background: "var(--chart-surface, #ffffff)",
     color: "var(--text)",
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif',
@@ -352,10 +352,10 @@ export default function TrendChart({ data, expanded = false, inline = false, sho
         <h2 style={{
           fontFamily: '"Merriweather", Georgia, "Times New Roman", serif',
           fontWeight: 700,
-          fontSize: expanded ? 24 : 20,
-          lineHeight: 1.25,
+          fontSize: expanded ? 22 : 17,
+          lineHeight: 1.2,
           letterSpacing: "-0.012em",
-          margin: "0 0 4px",
+          margin: "0 0 2px",
           color: "var(--text)",
         }}>
           {metric}{location ? ` · ${location}` : ""}
@@ -374,7 +374,7 @@ export default function TrendChart({ data, expanded = false, inline = false, sho
       {!inline && lede && lede.multi && (
         <p style={{
           fontSize: 12, lineHeight: 1.5, color: "var(--chart-tick)",
-          margin: "0 0 10px", maxWidth: 640,
+          margin: "0 0 6px", maxWidth: 640,
         }}>
           Comparing <strong style={{ color: "var(--text)" }}>{visibleSeries.length} {singlePlace ? "measures" : "places"}</strong>{" "}
           ({lede.labels}) from {lede.lo} to {lede.hi}. Annual estimates from the 5-year ACS rolling sample.
@@ -383,7 +383,7 @@ export default function TrendChart({ data, expanded = false, inline = false, sho
       {!inline && lede && !lede.multi && (
         <p style={{
           fontSize: 12, lineHeight: 1.5, color: "var(--chart-tick)",
-          margin: "0 0 10px", maxWidth: 640,
+          margin: "0 0 6px", maxWidth: 640,
         }}>
           {lede.delta != null ? (
             <>
