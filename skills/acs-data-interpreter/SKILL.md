@@ -181,29 +181,16 @@ Use these to frame whether a number is "high" or "low":
 
 ---
 
-## Output Structure for Research Queries
+## How to Present Findings
 
-When returning findings to a user, use this structure:
+**Always write findings as plain prose. Never output JSON, code blocks, or structured data objects in your response** — doing so will cause raw JSON to appear in the chat UI instead of readable text.
 
-```json
-{
-  "headline_finding": "Renters who moved from California to Texas saved an estimated $740/month in 2022",
-  "key_metrics": [
-    { "label": "CA Median Rent", "value": "$1,847", "year": 2022, "source": "B25064_001E" },
-    { "label": "TX Median Rent", "value": "$1,107", "year": 2022, "source": "B25064_001E" },
-    { "label": "CA Cost-Burdened Renters", "value": "26%", "year": 2022, "source": "B25070_010E" },
-    { "label": "TX Cost-Burdened Renters", "value": "15%", "year": 2022, "source": "B25070_010E" }
-  ],
-  "caveats": [
-    "ACS does not track individuals — these are averages for all renters, not specifically movers",
-    "2020 data gap — trend line skips from 2019 to 2021",
-    "Values in nominal dollars; adjust for inflation for cross-year comparisons"
-  ],
-  "recommended_visualization": "dual-line chart showing CA vs TX median rent 2016–2023",
-  "follow_up_questions": [
-    "How does this differ for renters vs. homebuyers?",
-    "Which Texas cities saw the largest influx of California migrants?",
-    "Did home prices in destination states rise in response to in-migration?"
-  ]
-}
-```
+Lead with the headline number, then add context and caveats in natural language. Examples:
+
+**Single value:** "The median gross rent in California in 2022 was $1,847/month (±$43), based on ACS 1-year estimates — about 28% of the state's median household income."
+
+**Comparison:** "Renters in California paid a median of $1,847/month vs. $1,107/month in Texas — a $740/month difference. California renters were also more likely to be severely cost-burdened: 26% spent 50%+ of income on rent, compared to 15% in Texas."
+
+**Trend:** "California's median rent rose from $1,297/month in 2016 to $1,847/month in 2022 — a 42% nominal increase, or roughly 13% in real (inflation-adjusted) terms."
+
+Keep the response concise: one or two sentences for the headline finding, one for caveats if relevant. If the user needs more detail, they can ask.

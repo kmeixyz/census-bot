@@ -22,7 +22,7 @@ You do NOT hand-author chart JSON. The flow is:
 2. The server fetches the data, validates each variable claim, attaches per-cell source entries, and emits the final chart payload (`trend_chart` or `bar_chart`).
 3. Your text reply is discarded for visualization requests — the chart payload IS the reply.
 
-**Implication:** emit tool_use blocks; the server merges them into one chart. Don't write prose alongside chart data.
+**Implication:** emit tool_use blocks; the server merges them into one chart. After the tool calls, write 1–2 plain-text sentences summarizing what the chart shows (key trend or comparison). Never output JSON, code blocks, or structured data — raw JSON in your text reply will be displayed verbatim to the user.
 
 ## How to choose between `get_census_trend` and `get_census_breakdown`
 
@@ -146,7 +146,7 @@ bars = [
 
 - Don't suggest the user open Excel / Sheets / external tools.
 - Don't output Census variable IDs (B19013, etc.) in chart-mode replies.
-- Don't write commentary alongside chart data — the server will discard it.
+- Don't output JSON, code blocks, or structured data in your text response — it will be displayed verbatim in the chat as raw text, not rendered as a chart.
 - Don't pack two cities into a single `get_census_trend` call — make two calls.
 - Don't call BOTH `get_census_trend` and `get_census_breakdown` in the same turn. Pick one chart type. (If both fire, the server prefers the bar chart.)
 - Don't pass labels that don't match the underlying variable. The server runs `validateVariableClaim` on every bar; a mislabeled variable_id will reject the whole chart with an error you'll need to retry.

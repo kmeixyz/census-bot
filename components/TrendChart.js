@@ -14,8 +14,8 @@ import { usePlaceGeoid } from "../lib/usePlaceGeoid";
 
 // ── Series colors ─────────────────────────────────────────────────────────────
 // Single-series mode uses the first slot. Multi-series cycles through.
-const SERIES_COLORS_LIGHT = ["#1a4480", "#2378c3", "#5b8ec5", "#7aa7d9", "#143664"];
-const SERIES_COLORS_DARK  = ["#60b4ff", "#89cfff", "#3d9be8", "#a8d8ff", "#2378c3"];
+const SERIES_COLORS_LIGHT = ["#1a4480", "#c05c00", "#1a7a3f", "#9b1d1d", "#6b3fa0"];
+const SERIES_COLORS_DARK  = ["#60b4ff", "#ffb347", "#4ade80", "#f87171", "#c084fc"];
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 function formatValueForMetric(rawValue, metric) {
@@ -272,8 +272,8 @@ export default function TrendChart({ data, expanded = false, inline = false, sho
 
   // ── SVG geometry ────────────────────────────────────────────────────────────
   const W = 760;
-  const H = expanded ? 240 : 150;
-  const PT = 20, PB = 24;
+  const H = expanded ? 200 : 120;
+  const PT = 16, PB = 20;
   // Wider left padding for Y-tick labels. Right padding widens for multi-
   // series to give room for the per-line end-of-line value labels (e.g.
   // "$2,997" rendered to the right of each line's last dot).
