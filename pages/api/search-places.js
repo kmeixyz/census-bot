@@ -1,142 +1,94 @@
 // GET /api/search-places?q=Chi&limit=15
-// Searches all U.S. Census places by name across all 50 states.
-// Builds a global in-memory index on first call (lazy, cached 24h).
+// Prefix/contains search across Census places, counties, and selected county
+// subdivisions (legally-defined MCDs like townships and towns, not statistical
+// units like CCDs). Reads from the pre-built acs-data/places.json.
 
-import { CURRENT_ACS_YEAR, STATE_NAMES } from "../../lib/censusConstants";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { makeRateLimiter } from "../../lib/rateLimit";
 
 const searchPlacesRateLimiter = makeRateLimiter({ windowMs: 60_000, max: 60 });
 
-const PLACE_TYPE_SUFFIX = /\s+(city|town|village|cdp|borough|township|charter township|municipality|unified government|consolidated government|metro government|urban county|metropolitan government)$/i;
+const DATA_PATH = resolve(process.cwd(), "acs-data/places.json");
 
-const STATE_TO_FIPS = {
-  "Alabama":"01","Alaska":"02","Arizona":"04","Arkansas":"05","California":"06",
-  "Colorado":"08","Connecticut":"09","Delaware":"10","Florida":"12","Georgia":"13",
-  "Hawaii":"15","Idaho":"16","Illinois":"17","Indiana":"18","Iowa":"19","Kansas":"20",
-  "Kentucky":"21","Louisiana":"22","Maine":"23","Maryland":"24","Massachusetts":"25",
-  "Michigan":"26","Minnesota":"27","Mississippi":"28","Missouri":"29","Montana":"30",
-  "Nebraska":"31","Nevada":"32","New Hampshire":"33","New Jersey":"34","New Mexico":"35",
-  "New York":"36","North Carolina":"37","North Dakota":"38","Ohio":"39","Oklahoma":"40",
-  "Oregon":"41","Pennsylvania":"42","Rhode Island":"44","South Carolina":"45",
-  "South Dakota":"46","Tennessee":"47","Texas":"48","Utah":"49","Vermont":"50",
-  "Virginia":"51","Washington":"53","West Virginia":"54","Wisconsin":"55","Wyoming":"56",
+// Places get a 5× boost so a city ranks above a same-name metro/county;
+// subdivisions get 0.3× because they're niche. This mirrors geoCandidates.js.
+const TYPE_BOOST = { place: 5, county: 2, county_subdivision: 0.3 };
+
+const COUNTY_SUFFIX = {
+  county: "County", parish: "Parish", borough: "Borough",
+  "census area": "Census Area", municipio: "Municipio", municipality: "Municipality",
 };
 
-let globalIndex = null;  // Array<{ name, state, display }>
-let indexBuiltAt = null;
-let buildPromise = null;
-const INDEX_TTL_MS = 24 * 60 * 60 * 1000;
-
-function parseName(rawName) {
-  const beforeComma = String(rawName || "").split(",")[0].trim();
-  return beforeComma.replace(PLACE_TYPE_SUFFIX, "").trim();
-}
-
-async function fetchState(stateName, fips, apiKey) {
-  try {
-    const url = `https://api.census.gov/data/${CURRENT_ACS_YEAR}/acs/acs5?get=NAME&for=place:*&in=state:${fips}&key=${apiKey}`;
-    const res = await fetch(url);
-    if (!res.ok) return [];
-    const data = await res.json();
-    if (!Array.isArray(data) || data.length < 2) return [];
-    const seen = new Set();
-    const out = [];
-    for (const row of data.slice(1)) {
-      const name = parseName(row[0]);
-      if (!name || seen.has(name.toLowerCase())) continue;
-      seen.add(name.toLowerCase());
-      out.push({ name, state: stateName, display: `${name}, ${stateName}`, geoType: "place" });
-    }
-    return out;
-  } catch {
-    return [];
-  }
-}
-
-// Counties for one state: NAME is "Cook County, Illinois" — keep the full
-// pre-comma name (with "County") so the query parser can resolve it later.
-async function fetchCounties(stateName, fips, apiKey) {
-  try {
-    const url = `https://api.census.gov/data/${CURRENT_ACS_YEAR}/acs/acs5?get=NAME&for=county:*&in=state:${fips}&key=${apiKey}`;
-    const res = await fetch(url);
-    if (!res.ok) return [];
-    const data = await res.json();
-    if (!Array.isArray(data) || data.length < 2) return [];
-    const out = [];
-    for (const row of data.slice(1)) {
-      const name = String(row[0] || "").split(",")[0].trim();
-      if (!name) continue;
-      out.push({ name, state: stateName, display: `${name}, ${stateName}`, geoType: "county" });
-    }
-    return out;
-  } catch {
-    return [];
-  }
-}
-
-const SUBDIVISION_SUFFIX = /\s+(township|town|borough|charter township|district|gore|grant|location|plantation|reservation|village)$/i;
-
-// County subdivisions for one state: covers New England towns and other
-// civil townships not classified as Census "places".
-async function fetchSubdivisions(stateName, fips, apiKey) {
-  try {
-    const url = `https://api.census.gov/data/${CURRENT_ACS_YEAR}/acs/acs5?get=NAME&for=county%20subdivision:*&in=state:${fips}&key=${apiKey}`;
-    const res = await fetch(url);
-    if (!res.ok) return [];
-    const data = await res.json();
-    if (!Array.isArray(data) || data.length < 2) return [];
-    const out = [];
-    for (const row of data.slice(1)) {
-      const beforeComma = String(row[0] || "").split(",")[0].trim();
-      if (/not defined/i.test(beforeComma)) continue;
-      const name = beforeComma.replace(SUBDIVISION_SUFFIX, "").trim();
-      if (!name) continue;
-      out.push({ name, state: stateName, display: `${name}, ${stateName}`, geoType: "county_subdivision" });
-    }
-    return out;
-  } catch {
-    return [];
-  }
-}
-
-async function buildIndex(apiKey) {
-  const entries = STATE_NAMES.map(s => ({ state: s, fips: STATE_TO_FIPS[s] })).filter(e => e.fips);
-  const BATCH = 8;
+let _entries = null;
+function getEntries() {
+  if (_entries) return _entries;
+  const raw = JSON.parse(readFileSync(DATA_PATH, "utf8"));
   const all = [];
-  for (let i = 0; i < entries.length; i += BATCH) {
-    const batch = entries.slice(i, i + BATCH);
-    const results = await Promise.all(
-      batch.flatMap(({ state, fips }) => [
-        fetchState(state, fips, apiKey),
-        fetchCounties(state, fips, apiKey),
-        fetchSubdivisions(state, fips, apiKey),
-      ])
-    );
-    for (const rows of results) all.push(...rows);
+
+  // ── Places ────────────────────────────────────────────────────────────────
+  // Dedupe per (name, state): prefer the place with the lowest rank
+  // (city=0 beats CDP=4) so "Denver, Colorado" appears once as a city.
+  const placeBest = new Map();
+  for (const r of raw.places) {
+    const key = `${r.n.toLowerCase()}::${r.sn}`;
+    const existing = placeBest.get(key);
+    if (!existing || r.r < existing.r) placeBest.set(key, r);
+  }
+  const placeKeys = new Set(placeBest.keys());
+  for (const r of placeBest.values()) {
+    all.push({
+      name: r.n,
+      state: r.sn,
+      display: `${r.n}, ${r.sn}`,
+      geoType: "place",
+      pop: r.pop ?? 0,
+    });
   }
 
-  // Deduplicate: if a name+state already exists as a "place", drop the
-  // county_subdivision entry — the place record is preferred.
-  const placeKeys = new Set(
-    all.filter(e => e.geoType === "place").map(e => `${e.name.toLowerCase()}::${e.state}`)
-  );
-  const deduped = all.filter(e =>
-    e.geoType !== "county_subdivision" || !placeKeys.has(`${e.name.toLowerCase()}::${e.state}`)
-  );
-
-  deduped.sort((a, b) => a.display.localeCompare(b.display));
-  return deduped;
-}
-
-function getIndex(apiKey) {
-  if (globalIndex && indexBuiltAt && Date.now() - indexBuiltAt < INDEX_TTL_MS) {
-    return Promise.resolve(globalIndex);
+  // ── Counties ──────────────────────────────────────────────────────────────
+  // Include the type suffix in name ("Denver County") so users can search for it.
+  for (const r of raw.counties) {
+    const suffix = COUNTY_SUFFIX[r.ct] ?? "County";
+    const fullName = `${r.n} ${suffix}`;
+    all.push({
+      name: fullName,
+      state: r.sn,
+      display: `${fullName}, ${r.sn}`,
+      geoType: "county",
+      pop: r.pop ?? 0,
+    });
   }
-  if (buildPromise) return buildPromise;
-  buildPromise = buildIndex(apiKey)
-    .then(idx => { globalIndex = idx; indexBuiltAt = Date.now(); buildPromise = null; return idx; })
-    .catch(err => { buildPromise = null; throw err; });
-  return buildPromise;
+
+  // ── County subdivisions ───────────────────────────────────────────────────
+  // Only legally-defined MCDs (townships, New England towns, etc.) — those with
+  // a real subdivType. Exclude CCDs (r.st === null) which are statistical units
+  // used in states like Colorado that don't have legally defined civil divisions.
+  // Also drop any subdivision whose bare name already exists as a place in the
+  // same state.
+  for (const r of raw.subdivisions) {
+    if (!r.st) continue; // skip CCDs and other statistical subdivisions
+    const key = `${r.n.toLowerCase()}::${r.sn}`;
+    if (placeKeys.has(key)) continue; // place entry takes precedence
+    all.push({
+      name: r.n,
+      state: r.sn,
+      display: `${r.n}, ${r.sn}`,
+      geoType: "county_subdivision",
+      pop: r.pop ?? 0,
+    });
+  }
+
+  // Sort by population × type boost descending so the most significant
+  // geography floats first within any starts-with or contains bucket.
+  all.sort((a, b) => {
+    const sb = b.pop * (TYPE_BOOST[b.geoType] ?? 1);
+    const sa = a.pop * (TYPE_BOOST[a.geoType] ?? 1);
+    return sb - sa;
+  });
+
+  _entries = all;
+  return all;
 }
 
 export default async function handler(req, res) {
@@ -151,32 +103,28 @@ export default async function handler(req, res) {
   const q = String(req.query.q || "").trim().slice(0, 100);
   if (q.length < 2) return res.status(200).json({ results: [] });
 
-  const limit = parseInt(req.query.limit || "0", 10) || Infinity;
-  const apiKey = process.env.CENSUS_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: "Missing Census API key." });
-
-  // If index is still building, kick it off and tell the client to retry
-  if (!globalIndex && buildPromise) {
-    return res.status(200).json({ results: [], indexing: true });
-  }
+  const limit = parseInt(req.query.limit || "0", 10) || 15;
 
   try {
-    const index = await getIndex(apiKey);
+    const entries = getEntries();
+
     // Normalize: strip commas/punctuation and collapse whitespace so
     // "Austin TX", "Austin, TX", and "Austin Texas" all match the same entries.
-    const normalize = (s) => s.replace(/[,]+/g, " ").replace(/\s+/g, " ").trim();
-    const ql = normalize(q.toLowerCase());
+    const normalize = (s) => s.replace(/[,]+/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+    const ql = normalize(q);
 
-    // Collect up to limit*3 candidates then sort: starts-with before contains
+    // Two buckets: name starts-with (preferred) then display contains.
     const starts = [];
     const contains = [];
-    for (const p of index) {
-      const nl = normalize(p.name.toLowerCase());
-      const dl = normalize(p.display.toLowerCase());
+    for (const p of entries) {
+      const nl = normalize(p.name);
+      const dl = normalize(p.display);
       if (nl.startsWith(ql)) starts.push(p);
       else if (dl.includes(ql)) contains.push(p);
-      if (starts.length + contains.length >= limit * 3) break;
+      // Early exit once we have more than enough for both buckets.
+      if (starts.length >= limit && contains.length >= limit) break;
     }
+
     const results = [...starts, ...contains].slice(0, limit);
     return res.status(200).json({ results });
   } catch (err) {
