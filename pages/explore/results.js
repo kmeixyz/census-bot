@@ -271,7 +271,7 @@ export default function ExploreResults() {
 
   useEffect(() => {
     if (!router.isReady) return;
-    if (!city || !stateName) { router.replace("/explore/location"); return; }
+    if (!city) { router.replace("/explore/location"); return; }
     try {
       const raw = sessionStorage.getItem(EXPLORE_METRICS_STORAGE_KEY);
       const parsed = raw ? JSON.parse(raw) : [];
@@ -417,7 +417,7 @@ export default function ExploreResults() {
           </div>
 
           <div className={ex.card}>
-            <p className={ex.question}>Results for {city}, {stateName}</p>
+            <p className={ex.question}>Results for {city}{stateName ? `, ${stateName}` : ""}</p>
             <div className={ex.footerNav} style={{ marginTop: "2.25rem", maxWidth: "none" }}>
               <button
                 type="button"

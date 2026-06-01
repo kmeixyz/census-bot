@@ -11,9 +11,10 @@ const searchPlacesRateLimiter = makeRateLimiter({ windowMs: 60_000, max: 60 });
 
 const DATA_PATH = resolve(process.cwd(), "acs-data/places.json");
 
-// Places get a 5× boost so a city ranks above a same-name metro/county;
-// subdivisions get 0.3× because they're niche. This mirrors geoCandidates.js.
-const TYPE_BOOST = { place: 5, county: 2, county_subdivision: 0.3 };
+// States get 2× boost on their summed-county population (enough to float above
+// same-name cities); places get 5× so a city beats a same-name metro/county;
+// subdivisions get 0.3× because they're niche. Mirrors geoCandidates.js.
+const TYPE_BOOST = { state: 2, place: 5, county: 2, county_subdivision: 0.3 };
 
 const COUNTY_SUFFIX = {
   county: "County", parish: "Parish", borough: "Borough",
@@ -25,6 +26,16 @@ function getEntries() {
   if (_entries) return _entries;
   const raw = JSON.parse(readFileSync(DATA_PATH, "utf8"));
   const all = [];
+
+  // ── States ────────────────────────────────────────────────────────────────
+  // Derive approximate state populations by summing county pops.
+  const statePop = new Map();
+  for (const r of raw.counties) {
+    statePop.set(r.sn, (statePop.get(r.sn) ?? 0) + (r.pop ?? 0));
+  }
+  for (const [sn, pop] of statePop.entries()) {
+    all.push({ name: sn, state: "", display: sn, geoType: "state", pop });
+  }
 
   // ── Places ────────────────────────────────────────────────────────────────
   // Dedupe per (name, state): prefer the place with the lowest rank

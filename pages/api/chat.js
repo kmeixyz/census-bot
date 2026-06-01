@@ -24,6 +24,8 @@ import {
   buildTrendSourceEntry,
 } from "../../lib/sourcing";
 import { getRateDenominator } from "../../lib/censusRates";
+import { runTrend } from "../../lib/trend";
+import { toTitleCase } from "../../lib/strings";
 
 // Strip em dashes from Claude's text replies. Handles three cases:
 //  "X — Y"   → "X. Y"   (clause connector → two sentences)
@@ -871,7 +873,9 @@ async function runAcsVariableTool(toolInput) {
     }
 
     // Run light validation (free-form vars don't have per-variable rules).
-    const validationWarning = await validateFreeFormResult(numericValue, unit, parsed.geoParams, censusApiKey);
+    // Pass the population already resolved during geo lookup so the count
+    // sanity-check doesn't fire a second Census round-trip for B01003_001E.
+    const validationWarning = await validateFreeFormResult(numericValue, unit, parsed.geoParams, censusApiKey, pickedPopulation);
 
     const formatted = formatValue(numericValue, share_of_variable_id ? "percent" : unit);
 
@@ -917,7 +921,7 @@ async function runAcsVariableTool(toolInput) {
 // bounds the way validateValue() does for the curated list, so we apply
 // general rules and return a one-line warning string when something looks
 // off (rather than dropping the result).
-async function validateFreeFormResult(value, unit, geoParams, apiKey) {
+async function validateFreeFormResult(value, unit, geoParams, apiKey, knownPopulation = null) {
   if (!Number.isFinite(value)) return "Value is not a finite number — Census API may have returned a sentinel.";
   if (value < 0) return "Value is negative, which usually means the Census API returned a sentinel (e.g. -666666666 for suppressed cells).";
   if (unit === "percent" && (value < 0 || value > 100)) {
@@ -927,10 +931,14 @@ async function validateFreeFormResult(value, unit, geoParams, apiKey) {
     return `Index value ${value.toFixed(3)} is outside the typical 0–1 range.`;
   }
   if (unit === "number" && value > 0) {
-    // For raw counts, sanity-check that we're not exceeding the geo's total population.
+    // For raw counts, sanity-check that we're not exceeding the geo's total
+    // population. Reuse the population resolved during geo lookup when we have
+    // it; only fall back to a live B01003_001E fetch when it's unknown.
     try {
-      const totalPopRaw = await fetchCensusValue("B01003_001E", geoParams, apiKey);
-      const totalPop = parseFloat(totalPopRaw);
+      let totalPop = typeof knownPopulation === "number" ? knownPopulation : null;
+      if (totalPop == null) {
+        totalPop = parseFloat(await fetchCensusValue("B01003_001E", geoParams, apiKey));
+      }
       if (Number.isFinite(totalPop) && totalPop > 0 && value > totalPop * 1.1) {
         return `Count (${Math.round(value).toLocaleString()}) exceeds the geography's total population (${Math.round(totalPop).toLocaleString()}). Verify this is the right variable.`;
       }
@@ -1017,44 +1025,20 @@ function wantsExplicitChart(text) {
   return EXPLICIT_CHART_KEYWORDS.some((kw) => lower.includes(kw));
 }
 
-async function runTrendTool(req, toolInput) {
-  const {
-    location, city, state,
-    metric,
-    variable_id, label, unit, table_id, share_of_variable_id,
-    startYear, endYear,
-  } = toolInput || {};
-
-  const host = req.headers["x-forwarded-host"] || req.headers.host;
-  const proto = req.headers["x-forwarded-proto"] || "http";
-  const baseUrl = host ? `${proto}://${host}` : "http://localhost:3000";
-
+async function runTrendTool(toolInput) {
   try {
-    const response = await fetch(`${baseUrl}/api/trend`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        location, city, state,
-        metric,
-        variable_id, label, unit, table_id, share_of_variable_id,
-        startYear, endYear,
-      }),
-    });
+    // Call the trend logic in-process — no self-HTTP round-trip. runTrend
+    // returns { status, body }; body is the same shape /api/trend serves:
+    // { points, locationLabel, unit, variableId, variableLabel, tableId }.
+    const { status, body } = await runTrend(toolInput || {});
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      return { error: data?.error || "Trend endpoint returned an error." };
+    if (status !== 200) {
+      return { error: body?.error || "Trend computation returned an error." };
     }
-
-    // /api/trend now returns { points, locationLabel, unit, variableId,
-    // variableLabel, tableId } so callers can build legends and source-trail
-    // rows without re-resolving anything client-side.
-    if (!data || !Array.isArray(data.points)) {
-      return { error: "Trend endpoint returned invalid response format." };
+    if (!body || !Array.isArray(body.points)) {
+      return { error: "Trend computation returned invalid response format." };
     }
-
-    return data;
+    return body;
   } catch (err) {
     return { error: String(err?.message || "Failed to fetch trend data.") };
   }
@@ -1286,14 +1270,6 @@ function getLatestUserMessage(messages) {
     .slice(-1)[0]?.content || "";
 }
 
-function toTitleCase(text) {
-  return String(text || "")
-    .split(" ")
-    .filter(Boolean)
-    .map((word) => word[0].toUpperCase() + word.slice(1))
-    .join(" ");
-}
-
 function inferTrendMetricLabel(userMessage) {
   const text = String(userMessage || "").trim();
   if (!text) return "Trend";
@@ -1368,16 +1344,6 @@ function chartErrorPayload() {
 
 // ── Statistic mode fast path (no agentic loop) ──────────────────────────────
 
-const PERCENT_VARIABLES = new Set([
-  "B17001_002E", "B23025_005E", "B08136_001E",
-  "B15003_022E", "B15003_017E", "B15003_025E",
-  "B23025_004E", "B23025_002E",
-]);
-
-function needsVerification(numericValue, variableId, validationFailed) {
-  return numericValue > 1_000_000 || validationFailed || PERCENT_VARIABLES.has(variableId);
-}
-
 function buildDeterministicSentence(place, variable, numericValue, format, year) {
   const formatted = formatValue(numericValue, format);
   return `${place} had a ${variable.toLowerCase()} of ${formatted} in ${year}.`;
@@ -1432,24 +1398,6 @@ function buildMetricNotRecognizedPrompt() {
     ``,
     `Try rephrasing with one of those.`,
   ].join("\n");
-}
-
-async function verifySentence(numericValue, sentence) {
-  try {
-    const response = await createMessageWithRetry({
-      model: MODEL,
-      max_tokens: 10,
-      system: `Reply "yes" or "no" only.`,
-      messages: [{
-        role: "user",
-        content: `Value: ${numericValue}\nSentence: "${sentence}"\nDoes the sentence accurately reflect the value?`,
-      }],
-    });
-    const text = response.content.find(b => b.type === "text")?.text?.trim().toLowerCase() || "yes";
-    return text.startsWith("yes");
-  } catch {
-    return true; // assume ok on failure — don't block response
-  }
 }
 
 // Direct lookup when the user has an explicit geo (picked or auto-defaulted).
@@ -1807,7 +1755,7 @@ async function handleStatisticModeFastPath(req, res, userMsg, mode, opts = {}) {
 
     if (!parsed.error && parsed.locationLabel) {
       const endYear = Number(CURRENT_ACS_YEAR);
-      const trendResult = await runTrendTool(req, {
+      const trendResult = await runTrendTool({
         location: parsed.locationLabel,
         metric: metricLabel,
         startYear: endYear - 4,
@@ -1984,14 +1932,6 @@ async function handleStatisticModeFastPath(req, res, userMsg, mode, opts = {}) {
   const formattedMOE = formatMOE(numericMOE, format);
   let sentence = buildDeterministicSentence(locationLabel, variable.label, numericValue, format, CURRENT_ACS_YEAR);
   if (formattedMOE) sentence = sentence.replace(/\.$/, ` (${formattedMOE}).`);
-
-  if (needsVerification(numericValue, variable.id, validationFailed)) {
-    const verified = await verifySentence(numericValue, sentence);
-    if (!verified) {
-      sentence = buildDeterministicSentence(locationLabel, variable.label, numericValue, format, CURRENT_ACS_YEAR);
-      if (formattedMOE) sentence = sentence.replace(/\.$/, ` (${formattedMOE}).`);
-    }
-  }
 
   const structured = {
     value: numericValue,
@@ -2184,7 +2124,7 @@ export default async function handler(req, res) {
               // trends it passes `variable_id` + label + unit + table_id.
               // Either path is fine — runTrendTool forwards both shapes.
               const metricLabel = block.input?.metric || block.input?.label || inferredMetric;
-              result = await runTrendTool(req, {
+              result = await runTrendTool({
                 ...block.input,
                 metric: block.input?.variable_id ? undefined : metricLabel,
               });

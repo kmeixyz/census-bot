@@ -189,7 +189,7 @@ export default function ExploreLocation() {
     return () => cancelAnimationFrame(id);
   }, [fromProgress]);
 
-  const canContinue = !!(stateName && city);
+  const canContinue = !!city;
 
   function viewResults() {
     if (!canContinue) { setFormError("Please select a location from the dropdown."); return; }
