@@ -1,7 +1,7 @@
 // pages/api/place-geoid.js
 // Returns the 7-digit Census GEOID for a city + state by querying the ACS API.
 import { STATE_FIPS } from "../../lib/censusTranslator";
-import { makeRateLimiter } from "../../lib/rateLimit";
+import { makeRateLimiter } from "../../security/rateLimit";
 
 const placeGeoidRateLimiter = makeRateLimiter({ windowMs: 60_000, max: 60 });
 

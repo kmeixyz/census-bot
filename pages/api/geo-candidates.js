@@ -4,7 +4,7 @@
 // flow to ask the user which scope they meant.
 
 import { findGeoCandidates, findZctaByZip, describeCandidate } from "../../lib/geoCandidates";
-import { makeRateLimiter } from "../../lib/rateLimit";
+import { makeRateLimiter } from "../../security/rateLimit";
 
 const geoCandidatesRateLimiter = makeRateLimiter({ windowMs: 60_000, max: 60 });
 

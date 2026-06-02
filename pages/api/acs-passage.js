@@ -4,7 +4,7 @@
 // GET ?id=<chunk_id> → { doc, focal, prev, next }
 
 import { getPassageWithContext } from "../../lib/acsRag";
-import { makeRateLimiter } from "../../lib/rateLimit";
+import { makeRateLimiter } from "../../security/rateLimit";
 
 const acsPassageRateLimiter = makeRateLimiter({ windowMs: 60_000, max: 60 });
 

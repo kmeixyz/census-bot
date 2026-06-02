@@ -5,7 +5,7 @@ export const config = { api: { bodyParser: { sizeLimit: "16kb" } } };
 // GET  ?action=docs    → { docs: [...] }     (used to render the doc directory)
 
 import { searchAcsDocs, getDocList } from "../../lib/acsRag";
-import { makeRateLimiter } from "../../lib/rateLimit";
+import { makeRateLimiter } from "../../security/rateLimit";
 
 const acsSearchRateLimiter = makeRateLimiter({ windowMs: 60_000, max: 30 });
 

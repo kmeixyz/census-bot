@@ -6,7 +6,7 @@ export const config = { api: { bodyParser: { sizeLimit: "16kb" } } };
 
 import { parseQuery, formatValue } from "../../lib/censusTranslator";
 import { fetchCensusValueWithMOEAndFallback } from "../../lib/censusApi";
-import { makeRateLimiter } from "../../lib/rateLimit";
+import { makeRateLimiter } from "../../security/rateLimit";
 import { computeRateIfNeeded } from "../../lib/censusRates";
 import { CURRENT_ACS_YEAR } from "../../lib/censusConstants";
 import { validateValue } from "../../lib/validateCensusData";

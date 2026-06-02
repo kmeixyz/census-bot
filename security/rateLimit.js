@@ -1,8 +1,8 @@
-// lib/rateLimit.js
+// security/rateLimit.js
 // Simple in-memory rate limiter for Next.js API routes.
 //
 // Usage:
-//   import { makeRateLimiter } from "../lib/rateLimit";
+//   import { makeRateLimiter } from "../../security/rateLimit";
 //   const limiter = makeRateLimiter({ windowMs: 60_000, max: 20 });
 //
 //   export default async function handler(req, res) {

@@ -5,7 +5,7 @@
 
 import { STATE_FIPS } from "../../lib/censusTranslator";
 import { CURRENT_ACS_YEAR } from "../../lib/censusConstants";
-import { makeRateLimiter } from "../../lib/rateLimit";
+import { makeRateLimiter } from "../../security/rateLimit";
 
 const placesRateLimiter = makeRateLimiter({ windowMs: 60_000, max: 60 });
 

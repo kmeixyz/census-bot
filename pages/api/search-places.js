@@ -5,7 +5,7 @@
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { makeRateLimiter } from "../../lib/rateLimit";
+import { makeRateLimiter } from "../../security/rateLimit";
 
 const searchPlacesRateLimiter = makeRateLimiter({ windowMs: 60_000, max: 60 });
 

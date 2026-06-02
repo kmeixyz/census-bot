@@ -5,7 +5,7 @@
 export const config = { api: { bodyParser: { sizeLimit: "128kb" } }, maxDuration: 60 };
 
 import Anthropic from "@anthropic-ai/sdk";
-import { makeRateLimiter } from "../../lib/rateLimit";
+import { makeRateLimiter } from "../../security/rateLimit";
 import { parseQuery, parseVariableOnly, formatValue, detectAmbiguousMetric, STATE_FIPS } from "../../lib/censusTranslator";
 import { fetchCensusValue, fetchCensusValueWithMOEAndFallback } from "../../lib/censusApi";
 import { QUERY_TYPES, CURRENT_ACS_YEAR } from "../../lib/censusConstants";

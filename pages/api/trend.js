@@ -20,7 +20,7 @@
 export const config = { api: { bodyParser: { sizeLimit: "32kb" } } };
 
 import { runTrend } from "../../lib/trend";
-import { makeRateLimiter } from "../../lib/rateLimit";
+import { makeRateLimiter } from "../../security/rateLimit";
 
 // 30 requests per minute per IP — each trend call fans out to up to 10 Census API calls.
 const trendRateLimiter = makeRateLimiter({ windowMs: 60_000, max: 30 });
