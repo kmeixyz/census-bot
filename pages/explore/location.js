@@ -1,12 +1,16 @@
 // pages/explore/location.js — Step 2: global place search
 import { useState, useEffect, useMemo, useRef } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import SiteLayout from "../../components/SiteLayout";
 import ex from "../../styles/Explore.module.css";
 import homeStyles from "../../styles/Home.module.css";
 import { EXPLORE_METRICS_STORAGE_KEY } from "../../lib/censusConstants";
+
+function toTitleCase(str) {
+  return String(str).replace(/\b\w/g, c => c.toUpperCase());
+}
 
 // ── Global place search ──────────────────────────────────────────────────────
 function GlobalPlaceSearch({ city, stateName, onSelect }) {
@@ -159,6 +163,7 @@ export default function ExploreLocation() {
   const [ready, setReady]           = useState(false);
   const [stateName, setStateName]   = useState("");
   const [city, setCity]             = useState("");
+  const [contextLabels, setContextLabels] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError]   = useState(null);
   const [progressWidth, setProgressWidth] = useState(fromProgress);
@@ -172,6 +177,7 @@ export default function ExploreLocation() {
         router.replace("/explore");
         return;
       }
+      setContextLabels(parsed.map(toTitleCase));
       const qState = Array.isArray(router.query.state) ? router.query.state[0] : router.query.state;
       const qCity  = Array.isArray(router.query.city)  ? router.query.city[0]  : router.query.city;
       if (qState) setStateName(qState);
@@ -249,6 +255,30 @@ export default function ExploreLocation() {
               <div className={ex.progressFill} style={{ width: `${progressWidth}%` }} />
             </div>
           </div>
+
+          <AnimatePresence>
+            {contextLabels.length > 0 && (
+              <motion.div
+                className={ex.contextBadgeStrip}
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } }}
+                exit={{ opacity: 0, transition: { duration: 0.15 } }}
+              >
+                <span className={ex.contextBadgeLabel}>Looking up:</span>
+                {contextLabels.map((label, i) => (
+                  <motion.span
+                    key={label}
+                    className={ex.contextBadge}
+                    initial={{ opacity: 0, scale: 0.78, y: -4 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    transition={{ type: "spring", stiffness: 420, damping: 26, delay: i * 0.05 }}
+                  >
+                    {label}
+                  </motion.span>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <div className={ex.card}>
             <p className={ex.question}>Where do you want to look?</p>

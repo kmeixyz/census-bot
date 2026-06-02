@@ -9,6 +9,7 @@
 // outside the chart in the parent (chat bubble) so the graph stays clean.
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { buildCensusProfileUrl } from "../lib/censusConstants";
 import { usePlaceGeoid } from "../lib/usePlaceGeoid";
 
@@ -472,15 +473,22 @@ export default function TrendChart({ data, expanded = false, inline = false, sho
             ))}
 
             {/* Series lines */}
+            <AnimatePresence>
             {visibleSeries.map((s, sIdx) => {
               const color = SERIES_COLORS[sIdx % SERIES_COLORS.length];
               const linePath = s.points
                 .map((p, i) => `${i === 0 ? "M" : "L"} ${xs(p.year).toFixed(1)} ${ys(p.numericValue).toFixed(1)}`)
                 .join(" ");
               return (
-                <g key={`line-${s.label}-${sIdx}`}>
-                  <path d={linePath} fill="none" stroke={color} strokeWidth="1.75"
-                        strokeLinejoin="round" strokeLinecap="round"/>
+                <g key={`line-${s.label}`}>
+                  <motion.path
+                    d={linePath} fill="none" stroke={color} strokeWidth="1.75"
+                    strokeLinejoin="round" strokeLinecap="round"
+                    initial={{ pathLength: 0, opacity: 0 }}
+                    animate={{ pathLength: 1, opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ pathLength: { duration: 0.75, ease: "easeOut" }, opacity: { duration: 0.25 } }}
+                  />
                   {/* Per-point dots + value labels (single-series only — multi gets too crowded).
                       Label placement: slope-aware so labels never sit on the line.
                       For dense series (>6 pts) we only label first, last, min, max to
@@ -644,6 +652,7 @@ export default function TrendChart({ data, expanded = false, inline = false, sho
                 </g>
               );
             })}
+            </AnimatePresence>
 
             {/* X-axis year labels — last year highlighted in single-series. */}
             {yearsInRange.map((year, i) => {
