@@ -542,9 +542,13 @@ export default function TrendChart({ data, expanded = false, inline = false, sho
                         const myLY = above ? y - 14 : y + 22;
                         const prevLY = prevAbove ? prevY - 14 : prevY + 22;
                         if (prevAbove === above && Math.abs(myLY - prevLY) < 14) {
+                          // Only flip if the new side stays inside the plot area.
+                          // The downward bound is the plot floor (H - PB), NOT the
+                          // full SVG height — otherwise a flipped-down label drops
+                          // into the x-axis year labels just below the plot.
                           const flipped = !above;
-                          if (flipped && y - 18 >= 0) above = flipped;
-                          else if (!flipped && y + 24 <= H) above = flipped;
+                          if (flipped && y - 18 >= PT) above = flipped;
+                          else if (!flipped && y + 24 <= H - PB) above = flipped;
                         }
                       }
                       prevLabeledIdx = i;

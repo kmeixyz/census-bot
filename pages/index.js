@@ -132,20 +132,13 @@ export default function Home() {
                 Ask questions about U.S. community data
                 <span className={landing.heroAccent}>in natural language</span>
               </p>
-              <p className={landing.heroSub}>
-                Explore demographics, housing, income, and more across American communities
-              </p>
             </section>
 
             <div className={landing.homeActions}>
               <HomeSearchBar />
 
               <section className={landing.quickstart}>
-                <div className={landing.quickstartHeader}>
-                  <div className={landing.eyebrow}>Quick Lookup</div>
-                  <Link href="/explore" className={landing.allMetricsLink}>All 37 metrics →</Link>
-                </div>
-                <h2 className={landing.quickstartTitle}>Popular Metrics</h2>
+                <h2 className={landing.quickstartTitle}>Quick Lookup</h2>
                 <div className={landing.metricGrid}>
                   {QUICK_LOOKUP_CHIPS.map(chip => (
                     <Link
@@ -158,25 +151,24 @@ export default function Home() {
                     </Link>
                   ))}
                 </div>
+                <div className={landing.allMetricsFooter}>
+                  <Link href="/explore" className={landing.allMetricsLink}>All 37 metrics →</Link>
+                </div>
               </section>
 
               <div className={landing.aboutCard}>
                 <h3 className={landing.aboutCardTitle}>About the Data</h3>
-                <p className={landing.aboutSectionLabel}>Data Source</p>
                 <p className={landing.aboutSectionText}>
-                  All data comes from the U.S. Census Bureau American Community Survey (1-Year and 5-Year Estimates, 2024)
-                </p>
-                <p className={landing.aboutSectionLabel}>Understanding Estimates</p>
-                <p className={landing.aboutSectionText}>
-                  5-year estimates provide the most reliable data for small geographic areas and rare populations
+                  All of the numbers here come from the U.S. Census Bureau&rsquo;s American
+                  Community Survey. Unlike the census that happens once every ten years, this
+                  survey runs all the time, reaching a few million households a year. It asks
+                  about everyday things like income, rent and housing, education, jobs,
+                  commuting, and who lives in a community, which gives us an up-to-date picture
+                  of life across the country.
                 </p>
                 <Link href="/learn" className={landing.learnMoreLink}>Learn more →</Link>
               </div>
             </div>
-
-            <footer className={landing.footerNote}>
-              Data Source: U.S. Census Bureau, American Community Survey (1-Year and 5-Year Estimates, 2024)
-            </footer>
           </div>
         </div>
       </SiteLayout>

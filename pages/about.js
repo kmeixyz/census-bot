@@ -80,24 +80,8 @@ export default function About() {
 
         <section className={`${landing.sectionCard} ${landing.sectionCardTeam}`}>
           <h2 className={`${landing.sectionHeading} ${landing.sectionHeadingTeam}`}>Our Team</h2>
-          <div className={`${landing.techGrid} ${landing.sectionBodySpaced}`}>
-            <div className={landing.techCol}>
-              <h3>Faculty Advisor</h3>
-              <ul>
-                <li>Joe Germuska</li>
-              </ul>
-            </div>
-            <div className={landing.techCol}>
-              <h3>Student Team</h3>
-              <ul>
-                <li>Sasha Draeger-Mazer</li>
-                <li>Feixu Chen</li>
-                <li>Kevin Mei</li>
-                <li>Grace Shao</li>
-                <li>Navya Singh</li>
-              </ul>
-            </div>
-          </div>
+          <p className={landing.sectionBody}>Faculty Advisor: Joe Germuska</p>
+          <p className={landing.sectionBody}>Sasha Draeger-Mazer, Feixu Chen, Kevin Mei, Grace Shao, Navya Singh</p>
         </section>
 
         <section className={`${landing.sectionCard} ${landing.sectionCardCredits}`}>

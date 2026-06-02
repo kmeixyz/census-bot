@@ -189,7 +189,7 @@ function loadConditionalSkills(userMessage) {
 const CENSUS_TOOL = {
   name: "lookup_census_data",
   description:
-    "Look up a live U.S. Census ACS statistic for a specific city and state. " +
+    "Look up a live U.S. Census ACS statistic for any geography. " +
     "Use this whenever the user asks for a specific metric about a real place. " +
     `Available metrics: ${QUERY_TYPES.join(", ")}.`,
   input_schema: {
@@ -200,16 +200,15 @@ const CENSUS_TOOL = {
         enum: QUERY_TYPES,
         description: `The data metric to look up. Must be one of: ${QUERY_TYPES.join(", ")}.`,
       },
-      city: {
+      location: {
         type: "string",
-        description: "The city name, e.g. 'Chicago'.",
-      },
-      state: {
-        type: "string",
-        description: "The full state name, e.g. 'Illinois'.",
+        description:
+          "The geography as a plain string. Examples: 'Iowa' for the state of Iowa, " +
+          "'Des Moines, Iowa' for the city, 'Cook County, Illinois' for a county. " +
+          "Write exactly what you mean — do not repeat the state name as the city.",
       },
     },
-    required: ["metric", "city", "state"],
+    required: ["metric", "location"],
   },
 };
 
@@ -288,7 +287,7 @@ const ACS_VARIABLE_TOOL = {
     "displayed result is unambiguous (e.g., not 'Asian' but 'Asian Alone, Not Hispanic'). Always " +
     "include the table_id so the source link works. Use share_of_variable_id only when the user " +
     "explicitly asked for a percentage or share — for raw counts, omit it. " +
-    "For ZIP code queries, pass zip_code='60618' and omit city/state.",
+    "For ZIP code queries, pass zip_code='60618' and omit location.",
   input_schema: {
     type: "object",
     properties: {
@@ -311,15 +310,14 @@ const ACS_VARIABLE_TOOL = {
       },
       zip_code: {
         type: "string",
-        description: "5-digit ZIP code when the user asked about a specific ZIP code area (ZCTA), e.g. '60618'. When provided, omit city and state.",
+        description: "5-digit ZIP code when the user asked about a specific ZIP code area (ZCTA), e.g. '60618'. When provided, omit location.",
       },
-      city: {
+      location: {
         type: "string",
-        description: "City name, e.g. 'Chicago'. For state-only or county-only queries, pass the empty string. Omit when using zip_code.",
-      },
-      state: {
-        type: "string",
-        description: "Full state name, e.g. 'Illinois'. Omit when using zip_code.",
+        description:
+          "The geography as a plain string. Examples: 'Iowa' for the state of Iowa, " +
+          "'Chicago, Illinois' for a city, 'Queens County, New York' for a county. " +
+          "Write exactly what you mean — do not repeat the state name as the city. Omit when using zip_code.",
       },
       share_of_variable_id: {
         type: "string",
@@ -473,8 +471,8 @@ TOOL RULES:
   a PRECISE label (specific enough that the user knows what was returned;
   use "Asian Alone, Not Hispanic" not "Asian Population"; use "Vietnamese
   Alone" not "Vietnamese Population"), the unit, and the table_id. The tool
-  also accepts county-level queries: pass the county name in the city field
-  (e.g. city = "Queens County", state = "New York"). Only use variable IDs
+  also accepts county-level queries via the location field
+  (e.g. location = "Queens County, New York"). Only use variable IDs
   you are confident exist; if uncertain, call search_acs_docs first.
 
   If lookup_census_variable returns an error with an "ambiguous" or
@@ -738,18 +736,24 @@ async function runAcsVariableTool(toolInput) {
   const censusApiKey = process.env.CENSUS_API_KEY;
   if (!censusApiKey) return { error: "Census API key not configured on server." };
 
-  const { variable_id, label, unit, table_id, zip_code, city, state, share_of_variable_id } = toolInput || {};
-  console.log(`[acs-var] call: variable_id=${variable_id}, label="${label}", table_id=${table_id}, zip_code="${zip_code}", city="${city}", state="${state}"`);
+  const { variable_id, label, unit, table_id, zip_code, location, share_of_variable_id } = toolInput || {};
+  console.log(`[acs-var] call: variable_id=${variable_id}, label="${label}", table_id=${table_id}, zip_code="${zip_code}", location="${location}"`);
 
   if (!variable_id || !/^[A-Z]\d+_\d+[A-Z]?$/.test(String(variable_id).trim())) {
     return { error: `Invalid variable_id '${variable_id}'. Must look like 'B03002_006E'.` };
   }
   if (!label || !unit || !table_id) {
-    return { error: "Missing required fields. lookup_census_variable needs variable_id, label, unit, table_id, and either zip_code or city+state." };
+    return { error: "Missing required fields. lookup_census_variable needs variable_id, label, unit, table_id, and either zip_code or location." };
   }
-  if (!zip_code && !state) {
-    return { error: "Missing geography. Provide zip_code for a ZIP code area, or city + state for a city/county/state." };
+  if (!zip_code && !location) {
+    return { error: "Missing geography. Provide zip_code for a ZIP code area, or location for a city/county/state." };
   }
+
+  // Parse location into a name part and optional state part for the fallback candidate lookup.
+  const locationStr = (location || "").trim();
+  const locCommaIdx = locationStr.indexOf(",");
+  const locName  = locCommaIdx !== -1 ? locationStr.slice(0, locCommaIdx).trim() : locationStr;
+  const locState = locCommaIdx !== -1 ? locationStr.slice(locCommaIdx + 1).trim() : null;
 
   // Validate the variable_id against the live ACS metadata BEFORE fetching.
   // Catches hallucinated picks (e.g. Claude claiming B02015_009E is "Vietnamese
@@ -780,13 +784,13 @@ async function runAcsVariableTool(toolInput) {
     pickedGeoType = "zcta";
   }
 
-  // City/state path — try the curated parser first (handles plain "City, State"
+  // Location path — try the curated parser first (handles plain "City, State"
   // and states), then fall back to findGeoCandidates for counties, CDPs, and any
   // other Census geography parseQuery doesn't natively cover. If multiple
   // candidates match, we return them so Claude can ask the user to clarify
   // rather than silently picking one.
   if (!geoParams) {
-    const queryStr = city ? `${label} in ${city}, ${state}` : `${label} in ${state}`;
+    const queryStr = `${label} in ${locationStr}`;
     try {
       const parsed = parseQuery(queryStr);
       if (!parsed.error && parsed.geoParams) {
@@ -797,9 +801,9 @@ async function runAcsVariableTool(toolInput) {
       // fall through to candidate lookup
     }
 
-    if (!geoParams && city) {
+    if (!geoParams && locName) {
       try {
-        const candidates = await findGeoCandidates(city, { stateName: state || null });
+        const candidates = await findGeoCandidates(locName, { stateName: locState || null });
         if (candidates && candidates.length >= 1) {
           // Prompt for clarification ONLY when candidates span multiple states —
           // those are the cases where picking automatically would silently give
@@ -807,9 +811,9 @@ async function runAcsVariableTool(toolInput) {
           // candidates are in the same state, take the top-ranked one (same
           // behavior as the curated fast path's defaultGeo).
           const stateSet = new Set(candidates.map(c => c.stateName).filter(Boolean));
-          if (stateSet.size > 1 && !state) {
+          if (stateSet.size > 1 && !locState) {
             return {
-              error: `"${city}" matches multiple geographies across different states. Ask the user to clarify which one — options include: ${candidates.slice(0, 6).map(c => describeCandidate(c).label).join("; ")}.`,
+              error: `"${locName}" matches multiple geographies across different states. Ask the user to clarify which one — options include: ${candidates.slice(0, 6).map(c => describeCandidate(c).label).join("; ")}.`,
               ambiguous: true,
               candidates: candidates.slice(0, 6).map(c => ({
                 label: describeCandidate(c).label,
@@ -830,23 +834,23 @@ async function runAcsVariableTool(toolInput) {
     }
 
     if (!geoParams) {
-      // No match — do a nationwide search for the city name and suggest the
+      // No match — do a nationwide search for the name part and suggest the
       // closest result so Claude can ask the user to confirm before retrying.
-      if (city) {
-        const nationwideCandidates = await findGeoCandidates(city, { stateName: null }).catch(() => []);
+      if (locName) {
+        const nationwideCandidates = await findGeoCandidates(locName, { stateName: null }).catch(() => []);
         if (nationwideCandidates && nationwideCandidates.length > 0) {
           const best = nationwideCandidates[0];
           const suggestedLabel = candidateLabel(best);
           return {
-            error: `Couldn't find "${city}, ${state}" in ACS data. Did you mean ${suggestedLabel}? Ask the user to confirm before retrying.`,
+            error: `Couldn't find "${locationStr}" in ACS data. Did you mean ${suggestedLabel}? Ask the user to confirm before retrying.`,
             geo_not_found: true,
-            requested_phrase: `${city}, ${state}`,
+            requested_phrase: locationStr,
             suggested_label: suggestedLabel,
           };
         }
       }
       return {
-        error: `Could not resolve "${city}, ${state}" to a Census geography. Ask the user to clarify the location.`,
+        error: `Could not resolve "${locationStr}" to a Census geography. Ask the user to clarify the location.`,
       };
     }
   }
@@ -958,8 +962,8 @@ async function validateFreeFormResult(value, unit, geoParams, apiKey, knownPopul
 }
 
 async function runCensusTool(toolInput) {
-  const { metric, city, state } = toolInput;
-  const query = city ? `${metric} in ${city}, ${state}` : `${metric} in ${state}`;
+  const { metric, location } = toolInput;
+  const query = `${metric} in ${location}`;
 
   const censusApiKey = process.env.CENSUS_API_KEY;
   if (!censusApiKey) {

@@ -5,25 +5,6 @@ import { useRouter } from "next/router";
 import ThemeToggle from "./ThemeToggle";
 import styles from "../styles/SiteLayout.module.css";
 
-function NavIconHome() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-      <polyline points="9 22 9 12 15 12 15 22" />
-    </svg>
-  );
-}
-
-function NavIconInfo() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <circle cx="12" cy="12" r="10" />
-      <line x1="12" y1="16" x2="12" y2="12" />
-      <line x1="12" y1="8" x2="12.01" y2="8" />
-    </svg>
-  );
-}
-
 function NavIconChat() {
   return (
     <svg
@@ -38,15 +19,6 @@ function NavIconChat() {
       aria-hidden
     >
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-    </svg>
-  );
-}
-
-function NavIconSearch() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <circle cx="11" cy="11" r="7" />
-      <line x1="21" y1="21" x2="16.65" y2="16.65" />
     </svg>
   );
 }
@@ -84,14 +56,11 @@ export default function SiteLayout({ children }) {
           </Link>
         </div>
         <div className={styles.navTrailing}>
-          <Link href="/" className={linkClass("/")}>
-            <NavIconHome /> Home
-          </Link>
           <Link href="/about" className={linkClass("/about")}>
-            <NavIconInfo /> About
+            About
           </Link>
           <Link href="/explore" className={linkClass("/explore")}>
-            <NavIconSearch /> Quick Lookup
+            Quick Lookup
           </Link>
           <Link
             href="/chat"
