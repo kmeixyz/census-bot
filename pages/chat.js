@@ -559,14 +559,14 @@ function UserAvatar() {
   );
 }
 
-function TypingIndicator() {
+function SkeletonBubble() {
   return (
-    <div className={styles.typingRow}>
+    <div className={styles.skeletonRow}>
       <BotAvatar />
-      <div className={styles.typingBubble}>
-        <span className={styles.dot} />
-        <span className={styles.dot} />
-        <span className={styles.dot} />
+      <div className={styles.skeletonBubble}>
+        <div className={styles.skeletonLine} style={{ width: "55%" }} />
+        <div className={styles.skeletonBlock} />
+        <div className={styles.skeletonLine} style={{ width: "38%" }} />
       </div>
     </div>
   );
@@ -1046,6 +1046,7 @@ export default function ChatPage() {
               ) : (
                 <div className={styles.messageList} ref={listRef}>
                   {messages.map((msg, i) => {
+                    const isNewest = i === messages.length - 1 && msg.role === "assistant";
                     const parsed = msg.role === "assistant" ? safeParse(msg.content) : null;
                     const isTrendChart = parsed?.type === "trend_chart";
                     const isBarChart = parsed?.type === "bar_chart";
@@ -1054,7 +1055,7 @@ export default function ChatPage() {
                     const isClarification = parsed?.type === "clarification";
 
                     return (
-                      <div key={i} className={`${styles.messageRow} ${msg.role === "user" ? styles.messageRowUser : ""}`}>
+                      <div key={i} className={`${styles.messageRow} ${msg.role === "user" ? styles.messageRowUser : ""} ${isNewest ? styles.messageRowNew : ""}`}>
                         {msg.role === "assistant" ? <BotAvatar /> : <UserAvatar />}
                         <div className={`${styles.bubble} ${
                           msg.role === "user"
@@ -1130,7 +1131,7 @@ export default function ChatPage() {
                       </div>
                     );
                   })}
-                  {loading && <TypingIndicator />}
+                  {loading && <SkeletonBubble />}
                 </div>
               )}
 
