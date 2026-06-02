@@ -1,5 +1,6 @@
 // pages/explore/index.js — Step 1: choose metrics (multi-select, grouped)
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { motion } from "framer-motion";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import SiteLayout from "../../components/SiteLayout";
@@ -201,13 +202,25 @@ export default function ExploreMetrics() {
     }
   }, [shouldRestore, presetMetric]);
 
+  const [exitDir, setExitDir] = useState(0); // -1 = to left, 1 = to right
+  const exitTimerRef = useRef(null);
+
+  function navigateTo(pathname, query, direction) {
+    setExitDir(direction);
+    exitTimerRef.current = setTimeout(() => {
+      router.push({ pathname, query });
+    }, 220);
+  }
+
+  useEffect(() => () => clearTimeout(exitTimerRef.current), []);
+
   function handleNext() {
     const list = [...selected];
     if (list.length === 0) return;
     try {
       sessionStorage.setItem(EXPLORE_METRICS_STORAGE_KEY, JSON.stringify(list));
     } catch { /* ignore */ }
-    router.push({ pathname: "/explore/location", query: { from: targetProgress } });
+    navigateTo("/explore/location", { from: targetProgress }, -1);
   }
 
   const totalSelected = selected.size;
@@ -220,7 +233,14 @@ export default function ExploreMetrics() {
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
       </Head>
       <SiteLayout>
-        <div className={ex.wizardPage}>
+        <motion.div
+          className={ex.wizardPage}
+          initial={{ opacity: 0, x: fromProgress > targetProgress ? -48 : 48 }}
+          animate={exitDir !== 0
+            ? { opacity: 0, x: exitDir * 48, transition: { duration: 0.2, ease: [0.4, 0, 1, 1] } }
+            : { opacity: 1, x: 0, transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] } }
+          }
+        >
           <h1 className={ex.pageTitle}>Quick Lookup</h1>
 
           <div className={ex.progressBlock}>
@@ -308,7 +328,7 @@ export default function ExploreMetrics() {
             marital status and household composition, industry and occupation, computer and
             internet access, vehicles available, year structure built, and migration/mobility.
           </p>
-        </div>
+        </motion.div>
       </SiteLayout>
     </>
   );

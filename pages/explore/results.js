@@ -1,5 +1,6 @@
 // pages/explore/results.js — Step 3: run queries and display results
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import { motion } from "framer-motion";
 import { usePlaceGeoid } from "../../lib/usePlaceGeoid";
 import Head from "next/head";
 import { useRouter } from "next/router";
@@ -376,12 +377,22 @@ export default function ExploreResults() {
     else { setShowTrendMap(prev => ({ ...prev, [query]: !prev[query] })); }
   }
 
+  const [exitDir, setExitDir] = useState(0);
+  const exitTimerRef = useRef(null);
+
+  const navigateTo = useCallback((pathname, query, direction) => {
+    setExitDir(direction);
+    exitTimerRef.current = setTimeout(() => router.push({ pathname, query }), 220);
+  }, [router]);
+
+  useEffect(() => () => clearTimeout(exitTimerRef.current), []);
+
   function restartLookup() {
     try {
       sessionStorage.removeItem(EXPLORE_METRICS_STORAGE_KEY);
       sessionStorage.removeItem(EXPLORE_LOCATION_STORAGE_KEY);
     } catch { /* ignore */ }
-    router.push({ pathname: "/explore", query: { from: 0 } });
+    navigateTo("/explore", { from: 0 }, 1);
   }
 
   const canCompare = !!(cmpState && cmpCity);
@@ -403,7 +414,14 @@ export default function ExploreResults() {
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
       </Head>
       <SiteLayout>
-        <div className={ex.wizardPage}>
+        <motion.div
+          className={ex.wizardPage}
+          initial={{ opacity: 0, x: fromProgress > targetProgress ? -48 : 48 }}
+          animate={exitDir !== 0
+            ? { opacity: 0, x: exitDir * 48, transition: { duration: 0.2, ease: [0.4, 0, 1, 1] } }
+            : { opacity: 1, x: 0, transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] } }
+          }
+        >
           <h1 className={ex.pageTitle}>Quick Lookup</h1>
 
           <div className={ex.progressBlock}>
@@ -427,7 +445,7 @@ export default function ExploreResults() {
                     sessionStorage.setItem(EXPLORE_METRICS_STORAGE_KEY, JSON.stringify(metrics));
                     sessionStorage.setItem(EXPLORE_LOCATION_STORAGE_KEY, JSON.stringify({ state: stateName, city }));
                   } catch { /* ignore */ }
-                  router.push({ pathname: "/explore/location", query: { from: targetProgress, state: stateName, city, restore: 1 } });
+                  navigateTo("/explore/location", { from: targetProgress, state: stateName, city, restore: 1 }, 1);
                 }}
               >
                 ← Back
@@ -621,7 +639,7 @@ export default function ExploreResults() {
               </button>
             </div>
           )}
-        </div>
+        </motion.div>
       </SiteLayout>
 
       {/* ── Fullscreen chart modal ── */}

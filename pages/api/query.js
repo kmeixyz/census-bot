@@ -5,13 +5,18 @@
 export const config = { api: { bodyParser: { sizeLimit: "16kb" } } };
 
 import { parseQuery, formatValue } from "../../lib/censusTranslator";
-import { fetchCensusValue } from "../../lib/censusApi";
+import { fetchCensusValueWithMOEAndFallback } from "../../lib/censusApi";
 import { makeRateLimiter } from "../../lib/rateLimit";
 import { computeRateIfNeeded } from "../../lib/censusRates";
 import { CURRENT_ACS_YEAR } from "../../lib/censusConstants";
 import { validateValue } from "../../lib/validateCensusData";
 
 const queryRateLimiter = makeRateLimiter({ windowMs: 60_000, max: 30 });
+
+function buildSourceLabel(dataset, year) {
+  if (dataset === "acs1") return `ACS ${year} 1-Year Estimates, U.S. Census Bureau`;
+  return `ACS 5-Year Estimates (${year}), U.S. Census Bureau`;
+}
 
 export default async function handler(req, res) {
   // Only allow POST
@@ -52,31 +57,37 @@ export default async function handler(req, res) {
   }
 
   try {
-    let rawValue = await fetchCensusValue(variable.id, geoParams, apiKey);
+    // Try 1-Year first (same as the chatbot), fall back to 5-Year with a reason.
+    let result = await fetchCensusValueWithMOEAndFallback(variable.id, geoParams, apiKey, {
+      year: CURRENT_ACS_YEAR,
+    });
 
-    const firstValidation = validateValue(variable.id, rawValue);
+    const firstValidation = validateValue(variable.id, result.value);
     if (!firstValidation.ok) {
-      try {
-        const retryValue = await fetchCensusValue(variable.id, geoParams, apiKey);
-        const retryValidation = validateValue(variable.id, retryValue);
-        if (!retryValidation.ok) {
-          return res.status(200).json({
-            query,
-            location: locationLabel,
-            metric: variable.label,
-            value: null,
-            warning: retryValidation.reason,
-            summary: `Data for ${variable.label.toLowerCase()} in ${locationLabel} could not be validated.`,
-            source: `ACS 5-Year Estimates (${CURRENT_ACS_YEAR}), U.S. Census Bureau`,
-          });
-        }
-        rawValue = retryValue;
-      } catch {
-        return res.status(500).json({ error: "Failed to fetch Census data. Please try again." });
+      // Retry once before giving up
+      result = await fetchCensusValueWithMOEAndFallback(variable.id, geoParams, apiKey, {
+        year: CURRENT_ACS_YEAR,
+      });
+      const retryValidation = validateValue(variable.id, result.value);
+      if (!retryValidation.ok) {
+        return res.status(200).json({
+          query,
+          location: locationLabel,
+          metric: variable.label,
+          value: null,
+          warning: retryValidation.reason,
+          summary: `Data for ${variable.label.toLowerCase()} in ${locationLabel} could not be validated.`,
+          source: buildSourceLabel(result.dataset, result.year),
+        });
       }
     }
 
-    const rateResult = await computeRateIfNeeded(variable.id, rawValue, geoParams, apiKey);
+    const { value: rawValue, dataset, year: usedYear } = result;
+
+    const rateResult = await computeRateIfNeeded(variable.id, rawValue, geoParams, apiKey, {
+      year: String(usedYear),
+      dataset: `acs/${dataset}`,
+    });
     const formattedValue = rateResult
       ? formatValue(rateResult.value, rateResult.format)
       : formatValue(rawValue, variable.format);
@@ -87,7 +98,8 @@ export default async function handler(req, res) {
       metric: variable.label,
       value: formattedValue,
       summary: `The ${variable.label.toLowerCase()} in ${locationLabel} is ${formattedValue}.`,
-      source: `ACS 5-Year Estimates (${CURRENT_ACS_YEAR}), U.S. Census Bureau`,
+      source: buildSourceLabel(dataset, usedYear),
+      dataset,
     });
   } catch (err) {
     console.error("Census fetch error:", err.message);

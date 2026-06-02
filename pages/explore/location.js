@@ -1,7 +1,7 @@
 // pages/explore/location.js — Step 2: global place search
 import { useState, useEffect, useMemo, useRef } from "react";
+import { motion } from "framer-motion";
 import Head from "next/head";
-import Link from "next/link";
 import { useRouter } from "next/router";
 import SiteLayout from "../../components/SiteLayout";
 import ex from "../../styles/Explore.module.css";
@@ -190,12 +190,25 @@ export default function ExploreLocation() {
   }, [fromProgress]);
 
   const canContinue = !!city;
+  const [exitDir, setExitDir] = useState(0);
+  const exitTimerRef = useRef(null);
+
+  function navigateTo(pathname, query, direction) {
+    setExitDir(direction);
+    exitTimerRef.current = setTimeout(() => router.push({ pathname, query }), 220);
+  }
+
+  useEffect(() => () => clearTimeout(exitTimerRef.current), []);
 
   function viewResults() {
     if (!canContinue) { setFormError("Please select a location from the dropdown."); return; }
     setFormError(null);
     setSubmitting(true);
-    router.push({ pathname: "/explore/results", query: { state: stateName, city, from: targetProgress } });
+    navigateTo("/explore/results", { state: stateName, city, from: targetProgress }, -1);
+  }
+
+  function goBack() {
+    navigateTo("/explore", { from: targetProgress, restore: 1 }, 1);
   }
 
   if (!ready) {
@@ -217,7 +230,14 @@ export default function ExploreLocation() {
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
       </Head>
       <SiteLayout>
-        <div className={ex.wizardPage}>
+        <motion.div
+          className={ex.wizardPage}
+          initial={{ opacity: 0, x: fromProgress > targetProgress ? -48 : 48 }}
+          animate={exitDir !== 0
+            ? { opacity: 0, x: exitDir * 48, transition: { duration: 0.2, ease: [0.4, 0, 1, 1] } }
+            : { opacity: 1, x: 0, transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] } }
+          }
+        >
           <h1 className={ex.pageTitle}>Quick Lookup</h1>
 
           <div className={ex.progressBlock}>
@@ -247,12 +267,9 @@ export default function ExploreLocation() {
             )}
 
             <div className={ex.footerNav} style={{ marginTop: "1.25rem", maxWidth: "none" }}>
-              <Link
-                href={{ pathname: "/explore", query: { from: targetProgress, restore: 1 } }}
-                className={ex.btnBack}
-              >
+              <button type="button" className={ex.btnBack} onClick={goBack}>
                 ← Back
-              </Link>
+              </button>
               <button
                 type="button"
                 className={`${ex.btnPrimary}${canContinue ? ` ${ex.btnPrimaryActive}` : ""}`}
@@ -263,7 +280,7 @@ export default function ExploreLocation() {
               </button>
             </div>
           </div>
-        </div>
+        </motion.div>
       </SiteLayout>
     </>
   );
