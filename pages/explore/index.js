@@ -276,9 +276,6 @@ export default function ExploreMetrics() {
                   >
                     <div className={ex.metricGroupHeader}>
                       <span className={ex.metricGroupLabel}>{group.label}</span>
-                      <span className={ex.metricGroupCount}>
-                        {groupSelected}/{group.metrics.length}
-                      </span>
                       <button
                         type="button"
                         className={`${ex.selectAllBtn} ${groupSelected > 0 ? ex.selectAllBtnActive : ""}`}

@@ -40,8 +40,8 @@
 }
 
 .aboutTitle {
-  font-size: 1.35rem;
-  margin-bottom: clamp(0.8rem, 2vw, 1.2rem);
+  font-size: clamp(1.45rem, 3.5vw, 1.85rem);
+  margin-bottom: 0;
 }
 
 .aboutTitle .titleGradient {
@@ -356,7 +356,7 @@
 /* About page */
 .aboutHero {
   text-align: center;
-  margin-bottom: clamp(1rem, 2vw, 1.5rem);
+  margin-bottom: 2.5rem;
 }
 
 .sectionCard {
@@ -375,7 +375,7 @@
 }
 
 .sectionHeading {
-  font-size: clamp(1.4rem, 3.2vw, 1.85rem);
+  font-size: 1.2rem;
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.1;

@@ -472,6 +472,14 @@ export default function TrendChart({ data, expanded = false, inline = false, sho
               </g>
             ))}
 
+            {/* Hover marker — dashed vertical line, rendered before series so
+                text labels (which carry a white halo via paintOrder) sit on top. */}
+            {hoverYear != null && (
+              <line x1={xs(hoverYear)} x2={xs(hoverYear)} y1={PT} y2={H - PB}
+                    stroke="var(--accent)" strokeWidth="1" strokeDasharray="2 3"
+                    pointerEvents="none"/>
+            )}
+
             {/* Series lines */}
             <AnimatePresence>
             {visibleSeries.map((s, sIdx) => {
@@ -578,12 +586,11 @@ export default function TrendChart({ data, expanded = false, inline = false, sho
                             <text x={x + (isFirst ? 4 : isLast ? -4 : 0)}
                                   y={above ? y - 14 : y + 22}
                                   textAnchor={isFirst ? "start" : isLast ? "end" : "middle"}
-                                  fontSize="10" fontWeight={isHover ? 700 : 500}
+                                  fontSize="10" fontWeight={500}
                                   fill={isHover ? "var(--text)" : "var(--chart-tick)"}
                                   stroke="var(--chart-surface, #fff)"
                                   strokeWidth="4"
-                                  paintOrder="stroke"
-                                  style={{ fontVariantNumeric: "tabular-nums" }}>
+                                  paintOrder="stroke">
                               {formatValueForMetric(p.numericValue, metric)}
                             </text>
                           )}
@@ -617,8 +624,7 @@ export default function TrendChart({ data, expanded = false, inline = false, sho
                               fill={color}
                               stroke="var(--chart-surface, #fff)"
                               strokeWidth="4"
-                              paintOrder="stroke"
-                              style={{ fontVariantNumeric: "tabular-nums" }}>
+                              paintOrder="stroke">
                           {formatValueForMetric(last.numericValue, metric)}
                         </text>
                       </g>
@@ -643,7 +649,7 @@ export default function TrendChart({ data, expanded = false, inline = false, sho
                         <text x={hx} y={hy - 10}
                               textAnchor="middle" fontSize="10" fontWeight={700}
                               fill={color}
-                              style={{ fontVariantNumeric: "tabular-nums" }}>
+                              stroke="var(--chart-surface, #fff)" strokeWidth="4" paintOrder="stroke">
                           {formatValueForMetric(hoverPt.numericValue, metric)}
                         </text>
                       </g>
@@ -689,12 +695,6 @@ export default function TrendChart({ data, expanded = false, inline = false, sho
               );
             })}
 
-            {/* Hover marker — dashed vertical line. */}
-            {hoverYear != null && (
-              <line x1={xs(hoverYear)} x2={xs(hoverYear)} y1={PT} y2={H - PB}
-                    stroke="var(--accent)" strokeWidth="1" strokeDasharray="2 3"
-                    pointerEvents="none"/>
-            )}
           </svg>
 
           {/* Multi-series legend (replaces per-point labels) */}

@@ -402,7 +402,7 @@ export default function ExploreResults() {
         const points = Array.isArray(data?.points) ? data.points : [];
         const chartData = {
           type: "trend_chart", metric: metricLabel || "Trend",
-          location: data?.locationLabel || `${city}, ${stateName}`,
+          location: data?.locationLabel || (stateName ? `${city}, ${stateName}` : city),
           points: points.map(p => ({ year: Number(p.year), numericValue: Number(p.numericValue) })),
           source: "U.S. Census Bureau ACS 5-Year Estimates",
         };
@@ -502,7 +502,7 @@ export default function ExploreResults() {
           </div>
 
           <div role="status" aria-live="polite" aria-atomic="true" className={ex.srOnly}>
-            {loading ? `Fetching results for ${city}, ${stateName}…` : results.length > 0 ? `${results.length} result${results.length > 1 ? "s" : ""} ready.` : ""}
+            {loading ? `Fetching results for ${city}${stateName ? `, ${stateName}` : ""}…` : results.length > 0 ? `${results.length} result${results.length > 1 ? "s" : ""} ready.` : ""}
           </div>
 
           <section className={ex.resultsSection} aria-label="Query results">
