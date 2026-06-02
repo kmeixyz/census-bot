@@ -540,6 +540,14 @@ community area", or "try a tract" as an alternative, because the tools can't
 deliver them. Steer the user toward the supported levels (city, county,
 metro, ZIP, state) instead.
 
+MULTI-GEOGRAPHY QUERIES ("by county in [State]", "all counties in [State]"):
+The tools look up ONE geography at a time. A query like "unemployment rate by
+county in Illinois" or "all counties in Texas" is NOT supported — do not call
+lookup_census_data or lookup_census_variable with city="" to attempt it. If
+the user asks for data across all counties or all cities in a state, tell them
+plainly that bulk county/city listings aren't supported and suggest they ask
+about a specific county or city (e.g. "Cook County, Illinois").
+
 DOCUMENTATION QUESTIONS (concepts, methodology, definitions):
 When the user asks about WHAT something means, HOW the ACS measures it, MOEs,
 1-year vs 5-year differences, what a table covers, who is included in a
@@ -951,7 +959,7 @@ async function validateFreeFormResult(value, unit, geoParams, apiKey, knownPopul
 
 async function runCensusTool(toolInput) {
   const { metric, city, state } = toolInput;
-  const query = `${metric} in ${city}, ${state}`;
+  const query = city ? `${metric} in ${city}, ${state}` : `${metric} in ${state}`;
 
   const censusApiKey = process.env.CENSUS_API_KEY;
   if (!censusApiKey) {

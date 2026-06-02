@@ -362,11 +362,6 @@
   background: var(--surface);
   margin-bottom: 0.85rem;
   border: 1px solid var(--border);
-  transition: border-color 0.2s ease;
-}
-
-.sectionCard:hover {
-  border-color: var(--accent);
 }
 
 .sectionCardOverview,
