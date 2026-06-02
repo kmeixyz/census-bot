@@ -259,12 +259,21 @@ export default function ExploreMetrics() {
               Select all that apply.{totalSelected > 0 ? ` (${totalSelected} selected)` : ""}
             </p>
 
-            <div className={ex.metricGroups}>
+            <motion.div
+              className={ex.metricGroups}
+              initial="hidden"
+              animate="visible"
+              variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.07 } } }}
+            >
               {METRIC_GROUPS.map(group => {
                 const groupKeys = group.metrics.map(m => m.key);
                 const groupSelected = groupKeys.filter(k => selected.has(k)).length;
                 return (
-                  <div key={group.id} className={ex.metricGroup}>
+                  <motion.div
+                    key={group.id}
+                    className={ex.metricGroup}
+                    variants={{ hidden: { opacity: 0, y: 10 }, visible: { opacity: 1, y: 0, transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] } } }}
+                  >
                     <div className={ex.metricGroupHeader}>
                       <span className={ex.metricGroupLabel}>{group.label}</span>
                       <span className={ex.metricGroupCount}>
@@ -291,25 +300,27 @@ export default function ExploreMetrics() {
                       {group.metrics.map(({ key, label }) => {
                         const on = selected.has(key);
                         return (
-                          <button
+                          <motion.button
                             key={key}
                             type="button"
                             className={`${ex.choice} ${on ? ex.choiceSelected : ""}`}
                             onClick={() => toggle(key)}
                             aria-pressed={on}
+                            whileTap={{ scale: 0.93, transition: { type: "spring", stiffness: 500, damping: 22 } }}
+                            whileHover={{ scale: 1.02, transition: { duration: 0.15 } }}
                           >
                             {on && (
                               <span className={ex.choiceCheck} aria-hidden="true">✓</span>
                             )}
                             {label}
-                          </button>
+                          </motion.button>
                         );
                       })}
                     </div>
-                  </div>
+                  </motion.div>
                 );
               })}
-            </div>
+            </motion.div>
           </div>
 
           <div className={ex.footerNav} style={{ justifyContent: "flex-end" }}>

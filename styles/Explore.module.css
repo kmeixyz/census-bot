@@ -15,6 +15,41 @@
   color: var(--accent);
 }
 
+/* ── Context badge strip (Step 2 — shows what was selected in Step 1) ── */
+.contextBadgeStrip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  max-width: 980px;
+  padding: 0.1rem 0;
+}
+
+.contextBadgeLabel {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  margin-right: 0.15rem;
+}
+
+.contextBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.22rem 0.65rem;
+  border-radius: 99px;
+  background: var(--surface-2);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-size: 0.76rem;
+  font-weight: 600;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
 .progressBlock {
   width: 100%;
   max-width: 980px;

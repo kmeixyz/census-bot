@@ -1,10 +1,20 @@
 // pages/index.js — Home
 import { useState, useRef } from "react";
+import { motion } from "framer-motion";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import SiteLayout from "../components/SiteLayout";
 import landing from "../styles/Landing.module.css";
+
+const gridVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.06, delayChildren: 0.05 } },
+};
+const gridItemVariant = {
+  hidden: { opacity: 0, y: 14 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.38, ease: [0.22, 1, 0.36, 1] } },
+};
 
 const S = { width:16, height:16, viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:2, strokeLinecap:"round", strokeLinejoin:"round", "aria-hidden":true };
 
@@ -139,18 +149,21 @@ export default function Home() {
 
               <section className={landing.quickstart}>
                 <h2 className={landing.quickstartTitle}>Quick Lookup</h2>
-                <div className={landing.metricGrid}>
+                <motion.div
+                  className={landing.metricGrid}
+                  variants={gridVariants}
+                  initial="hidden"
+                  animate="visible"
+                >
                   {QUICK_LOOKUP_CHIPS.map(chip => (
-                    <Link
-                      key={chip.slug}
-                      href={`/explore?m=${chip.slug}`}
-                      className={landing.metricCard}
-                    >
-                      <div className={landing.metricCardIcon}><chip.Icon /></div>
-                      <span className={landing.metricCardLabel}>{chip.label}</span>
-                    </Link>
+                    <motion.div key={chip.slug} variants={gridItemVariant}>
+                      <Link href={`/explore?m=${chip.slug}`} className={landing.metricCard}>
+                        <div className={landing.metricCardIcon}><chip.Icon /></div>
+                        <span className={landing.metricCardLabel}>{chip.label}</span>
+                      </Link>
+                    </motion.div>
                   ))}
-                </div>
+                </motion.div>
                 <div className={landing.allMetricsFooter}>
                   <Link href="/explore" className={landing.allMetricsLink}>All 37 metrics →</Link>
                 </div>

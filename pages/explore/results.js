@@ -1,6 +1,6 @@
 // pages/explore/results.js — Step 3: run queries and display results
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
-import { motion } from "framer-motion";
+import { motion, animate as animateValue } from "framer-motion";
 import { usePlaceGeoid } from "../../lib/usePlaceGeoid";
 import Head from "next/head";
 import { useRouter } from "next/router";
@@ -226,6 +226,51 @@ function PlaceSearch({ city, stateName, onSelect, label, inputId, geoTypeFilter 
       </div>
     </div>
   );
+}
+
+// ── Animated number counter ───────────────────────────────────────────────────
+function parseValueStr(str) {
+  const s = String(str || "").trim();
+  if (s.startsWith("$")) {
+    const n = parseFloat(s.replace(/[$,\s]/g, ""));
+    return { raw: n, type: "currency" };
+  }
+  if (s.endsWith("%")) {
+    const n = parseFloat(s.replace(/%/g, ""));
+    const dec = s.includes(".") ? s.split(".")[1].replace("%", "").length : 0;
+    return { raw: n, type: "percent", dec };
+  }
+  const n = parseFloat(s.replace(/[,\s]/g, ""));
+  return { raw: n, type: "number" };
+}
+
+function formatLive(v, { type, dec }) {
+  if (type === "currency") {
+    return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(v);
+  }
+  if (type === "percent") return `${v.toFixed(dec || 1)}%`;
+  return new Intl.NumberFormat("en-US").format(Math.round(v));
+}
+
+function AnimatedNumber({ value }) {
+  const [display, setDisplay] = useState(value);
+  const ctrlRef = useRef(null);
+
+  useEffect(() => {
+    const { raw, type, dec } = parseValueStr(value);
+    if (!Number.isFinite(raw) || raw <= 0) { setDisplay(value); return; }
+    const fmt = { type, dec };
+    if (ctrlRef.current) ctrlRef.current.stop();
+    ctrlRef.current = animateValue(0, raw, {
+      duration: 1.1,
+      ease: [0.22, 1, 0.36, 1],
+      onUpdate: v => setDisplay(formatLive(v, fmt)),
+      onComplete: () => setDisplay(value),
+    });
+    return () => ctrlRef.current?.stop();
+  }, [value]);
+
+  return <>{display}</>;
 }
 
 export default function ExploreResults() {
@@ -543,7 +588,7 @@ export default function ExploreResults() {
 
                       <div className={ex.statValueRow}>
                         <div>
-                          <div className={ex.statValue}>{result.value}</div>
+                          <div className={ex.statValue}><AnimatedNumber value={result.value} /></div>
                           <div className={ex.statLocation}>{result.location}</div>
                         </div>
                         {hasCmp && (
