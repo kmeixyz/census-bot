@@ -153,10 +153,6 @@ export default function Learn() {
           <h1 className={`${landing.title} ${landing.aboutTitle}`}>
             <span className={landing.titleGradient}>Learn About ACS Data</span>
           </h1>
-          <p className={landing.lead}>
-            Search the Census Bureau&apos;s own handbooks, methodology report,
-            and subject definitions.
-          </p>
         </header>
 
         <div className={landing.learnPage}>

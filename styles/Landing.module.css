@@ -40,12 +40,12 @@
 }
 
 .aboutTitle {
-  font-size: clamp(2.25rem, 5.1vw, 3.35rem);
+  font-size: 1.35rem;
   margin-bottom: clamp(0.8rem, 2vw, 1.2rem);
 }
 
 .aboutTitle .titleGradient {
-  color: var(--accent);
+  color: var(--text);
 }
 
 .leadStrong {

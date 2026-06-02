@@ -370,7 +370,7 @@ export default function TrendChart({ data, expanded = false, inline = false, sho
     opacity: visible ? 1 : 0,
     transform: visible ? "translateY(0)" : "translateY(8px)",
     transition: "opacity 0.5s ease, transform 0.5s ease",
-    padding: inline ? 0 : "10px 16px",
+    padding: inline ? 0 : "22px 16px 10px",
     background: "var(--chart-surface, #ffffff)",
     color: "var(--text)",
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif',

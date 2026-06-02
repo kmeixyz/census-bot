@@ -1015,14 +1015,6 @@ export default function ChatPage() {
           {/* Main chat area */}
           <div className={styles.chatMain}>
 
-          {/* Header */}
-          <div className={styles.header}>
-            <div className={styles.headerLeft}>
-              <h1 className={styles.title}>Ask a Question</h1>
-              <p className={styles.subtitle}>Look up live Census data for any U.S. city or region.</p>
-            </div>
-          </div>
-
           <div className={styles.chatInner}>
               {/* Message list — or welcome+suggestions when empty */}
               {messages.length === 0 && !loading ? (
