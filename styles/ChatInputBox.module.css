@@ -80,32 +80,27 @@
   padding-bottom: 0.1rem;
 }
 
-/* "Thinking …" label shown while loading */
+/* Dots-only indicator shown while loading */
 .thinkingLabel {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  font-size: 0.76rem;
-  color: var(--muted);
-  font-style: italic;
-  white-space: nowrap;
+  padding: 0 2px;
 }
 
 /* ── Animated typing dots ─────────────────────────────────────────────────── */
 .typingDots {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  margin-left: 2px;
-  vertical-align: middle;
+  gap: 5px;
 }
 
 .typingDot {
   display: inline-block;
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: var(--muted);
+  background: var(--accent);
+  flex-shrink: 0;
 }
 
 .newChatBtn {

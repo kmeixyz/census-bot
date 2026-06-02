@@ -160,11 +160,13 @@ export default function Home() {
                 <h3 className={landing.aboutCardTitle}>About the Data</h3>
                 <p className={landing.aboutSectionText}>
                   All of the numbers here come from the U.S. Census Bureau&rsquo;s American
-                  Community Survey. Unlike the census that happens once every ten years, this
-                  survey runs all the time, reaching a few million households a year. It asks
-                  about everyday things like income, rent and housing, education, jobs,
-                  commuting, and who lives in a community, which gives us an up-to-date picture
-                  of life across the country.
+                  Community Survey, an ongoing survey that reaches a few million households
+                  across the country each year. People are asked about everyday things like
+                  income, rent and housing, education, jobs, commuting, language, and who
+                  lives in their community. The Census Bureau then adds those answers up into
+                  estimates for places of almost any size, from a single neighborhood to the
+                  whole nation. It&rsquo;s one of the most detailed pictures we have of how
+                  communities are doing and how they change over time.
                 </p>
                 <Link href="/learn" className={landing.learnMoreLink}>Learn more →</Link>
               </div>

@@ -39,12 +39,11 @@ function TypingDots() {
         <motion.span
           key={i}
           className={styles.typingDot}
-          initial={{ opacity: 0.3, scale: 0.85 }}
-          animate={{ opacity: [0.3, 0.9, 0.3], scale: [0.85, 1.1, 0.85] }}
+          animate={{ y: [0, -5, 0], opacity: [0.45, 1, 0.45] }}
           transition={{
-            duration: 1.2,
+            duration: 0.9,
             repeat: Infinity,
-            delay: i * 0.15,
+            delay: i * 0.18,
             ease: "easeInOut",
           }}
         />
@@ -173,7 +172,7 @@ const ChatInputBox = forwardRef(function ChatInputBox(
                 transition={{ duration: 0.2 }}
                 aria-live="polite"
               >
-                Thinking <TypingDots />
+                <TypingDots />
               </motion.span>
             )}
           </AnimatePresence>
