@@ -1,10 +1,11 @@
 // pages/explore/results.js — Step 3: run queries and display results
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
-import { motion, animate as animateValue } from "framer-motion";
+import { motion, animate as animateValue, useReducedMotion } from "framer-motion";
 import { usePlaceGeoid } from "../../lib/usePlaceGeoid";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import SiteLayout from "../../components/SiteLayout";
+import WizardSteps from "../../components/WizardSteps";
 import TrendChart from "../../components/TrendChart";
 import ex from "../../styles/Explore.module.css";
 import homeStyles from "../../styles/Home.module.css";
@@ -253,12 +254,19 @@ function formatLive(v, { type, dec }) {
 }
 
 function AnimatedNumber({ value }) {
+  const reduce = useReducedMotion();
   const [display, setDisplay] = useState(value);
   const ctrlRef = useRef(null);
+  // Track the value we've already counted up to, so an identical re-render (or
+  // a settle-then-same re-render) never replays the animation. The count-up
+  // runs once per distinct final value — C2: no settle-then-silently-change.
+  const animatedForRef = useRef(null);
 
   useEffect(() => {
     const { raw, type, dec } = parseValueStr(value);
-    if (!Number.isFinite(raw) || raw <= 0) { setDisplay(value); return; }
+    if (reduce || !Number.isFinite(raw) || raw <= 0) { setDisplay(value); return; }
+    if (animatedForRef.current === value) { setDisplay(value); return; }
+    animatedForRef.current = value;
     const fmt = { type, dec };
     if (ctrlRef.current) ctrlRef.current.stop();
     ctrlRef.current = animateValue(0, raw, {
@@ -268,7 +276,7 @@ function AnimatedNumber({ value }) {
       onComplete: () => setDisplay(value),
     });
     return () => ctrlRef.current?.stop();
-  }, [value]);
+  }, [value, reduce]);
 
   return <>{display}</>;
 }
@@ -292,6 +300,9 @@ export default function ExploreResults() {
   const [cmpCity, setCmpCity] = useState("");
   const [cmpResults, setCmpResults] = useState([]);
   const [cmpLoading, setCmpLoading] = useState(false);
+  // B2: per-metric trend for the compare city, overlaid onto the primary chart.
+  const [cmpTrendByQuery, setCmpTrendByQuery] = useState({});
+  const [cmpTrendLoadingKeys, setCmpTrendLoadingKeys] = useState(new Set());
 
   const fromProgress = useMemo(() => {
     const raw = router.query.from;
@@ -369,6 +380,7 @@ export default function ExploreResults() {
   async function runCompare() {
     if (!cmpState || !cmpCity) return;
     setCmpLoading(true);
+    setCmpTrendByQuery({}); // drop overlays from any previous compare city
     const entries = await Promise.all(
       metrics.map(async metric => {
         const query = buildCityStateQuery(metric, cmpCity, cmpState);
@@ -422,6 +434,49 @@ export default function ExploreResults() {
     else { setShowTrendMap(prev => ({ ...prev, [query]: !prev[query] })); }
   }
 
+  // B2: fetch the compare city's trend for one metric so it can be overlaid as
+  // a second series on the primary chart. Mirrors handleTrend but for cmpCity.
+  async function loadCmpTrend(query, metricLabel) {
+    if (!cmpCity || !cmpState) return;
+    setCmpTrendLoadingKeys(prev => new Set([...prev, query]));
+    try {
+      const res = await fetch("/api/trend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ city: cmpCity, state: cmpState, metric: metricLabel, query, startYear: TREND_START_YEAR, endYear: TREND_END_YEAR }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setCmpTrendByQuery(prev => ({ ...prev, [query]: { error: data.error || "Trend failed" } }));
+      } else {
+        const points = Array.isArray(data?.points) ? data.points : [];
+        setCmpTrendByQuery(prev => ({ ...prev, [query]: {
+          label: data?.locationLabel || `${cmpCity}, ${cmpState}`,
+          points: points.map(p => ({ year: Number(p.year), numericValue: Number(p.numericValue) })),
+        } }));
+      }
+    } catch {
+      setCmpTrendByQuery(prev => ({ ...prev, [query]: { error: "Network error" } }));
+    } finally {
+      setCmpTrendLoadingKeys(prev => { const next = new Set(prev); next.delete(query); return next; });
+    }
+  }
+
+  // Whenever a comparison is active and a primary chart is visible, lazily load
+  // the matching compare-city trend so the two lines render on one chart. Covers
+  // both orders: compare-then-show-chart and show-chart-then-compare.
+  useEffect(() => {
+    if (!cmpCity || !cmpState || cmpResults.length === 0) return;
+    results.forEach(row => {
+      if (row.error) return;
+      const visible = showTrendMap[row.query] && trendByQuery[row.query] && !trendByQuery[row.query].error;
+      if (visible && !cmpTrendByQuery[row.query] && !cmpTrendLoadingKeys.has(row.query)) {
+        loadCmpTrend(row.query, row.result?.metric);
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cmpResults, showTrendMap, trendByQuery, cmpCity, cmpState]);
+
   const [exitDir, setExitDir] = useState(0);
   const exitTimerRef = useRef(null);
 
@@ -431,6 +486,19 @@ export default function ExploreResults() {
   }, [router]);
 
   useEffect(() => () => clearTimeout(exitTimerRef.current), []);
+
+  // B1: jump back to an earlier wizard step, preserving metric + location picks.
+  function goToStep(step) {
+    try {
+      sessionStorage.setItem(EXPLORE_METRICS_STORAGE_KEY, JSON.stringify(metrics));
+      sessionStorage.setItem(EXPLORE_LOCATION_STORAGE_KEY, JSON.stringify({ state: stateName, city }));
+    } catch { /* ignore */ }
+    if (step === 1) {
+      navigateTo("/explore", { from: targetProgress, restore: 1 }, 1);
+    } else if (step === 2) {
+      navigateTo("/explore/location", { from: targetProgress, state: stateName, city, restore: 1 }, 1);
+    }
+  }
 
   function restartLookup() {
     try {
@@ -470,10 +538,7 @@ export default function ExploreResults() {
           <h1 className={ex.pageTitle}>Quick Lookup</h1>
 
           <div className={ex.progressBlock}>
-            <div className={ex.progressRow}>
-              <span>Step 3 of 3</span>
-              <span className={ex.progressPct}>100% Complete</span>
-            </div>
+            <WizardSteps current={3} onNavigate={goToStep} />
             <div className={ex.progressTrack}>
               <div className={ex.progressFill} style={{ width: `${progressWidth}%` }} />
             </div>
@@ -580,6 +645,23 @@ export default function ExploreResults() {
                   const cmpRow = cmpResults.find(r => r.metric === row.metric);
                   const hasCmp = cmpRow && !cmpRow.error;
 
+                  // B2: when a comparison is active and the compare city's trend
+                  // has loaded, overlay both cities as two series on one chart.
+                  const cmpTrend = cmpTrendByQuery[row.query];
+                  const cmpTrendBusy = cmpTrendLoadingKeys.has(row.query);
+                  const combinedTrend =
+                    hasCmp && trend && !trend.error &&
+                    cmpTrend && !cmpTrend.error && Array.isArray(cmpTrend.points) && cmpTrend.points.length > 0
+                      ? {
+                          ...trend,
+                          singlePlace: false,
+                          series: [
+                            { label: city, points: trend.points },
+                            { label: cmpCity, points: cmpTrend.points },
+                          ],
+                        }
+                      : trend;
+
                   return (
                     <div key={row.query} className={ex.statCard} style={{ "--card-accent": color, animationDelay: `${index * 70}ms` }}>
                       <div className={ex.statMeta}>
@@ -613,12 +695,21 @@ export default function ExploreResults() {
                       {chartVisible && (
                         <div className={ex.inlineChart}>
                           <TrendChart
-                            data={trend}
+                            data={combinedTrend}
                             inline
                             showToolbar
                             onExpand={() => setExpandedQuery(row.query)}
                           />
+                          {hasCmp && cmpTrendBusy && (
+                            <p className={ex.hint} style={{ textAlign: "left", marginTop: 6 }}>
+                              <span className={ex.searchLoadingSpinner} style={{ verticalAlign: "middle", marginRight: 6 }} />
+                              Adding {cmpCity} to the chart…
+                            </p>
+                          )}
                           {(() => {
+                            // Single-series gets the prose summary; the combined
+                            // chart speaks for itself via its legend + labels.
+                            if (combinedTrend?.series) return null;
                             const summary = buildTrendSummary(trend.points, result.metric);
                             return summary ? <p className={ex.trendSummary}>{summary}</p> : null;
                           })()}
@@ -652,13 +743,13 @@ export default function ExploreResults() {
                     stateName={cmpState}
                     inputId="compare-place"
                     geoTypeFilter={isCountyPrimary ? "county" : "place"}
-                    onSelect={(c, s) => { setCmpCity(c); setCmpState(s); setCmpResults([]); }}
+                    onSelect={(c, s) => { setCmpCity(c); setCmpState(s); setCmpResults([]); setCmpTrendByQuery({}); }}
                   />
                   <div className={ex.compareActions}>
                     <button
                       type="button"
                       className={ex.btnBack}
-                      onClick={() => { setShowCompare(false); setCmpState(""); setCmpCity(""); setCmpResults([]); }}
+                      onClick={() => { setShowCompare(false); setCmpState(""); setCmpCity(""); setCmpResults([]); setCmpTrendByQuery({}); }}
                     >
                       Cancel
                     </button>

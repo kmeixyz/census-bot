@@ -6,6 +6,7 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -47,30 +48,67 @@ function applyTheme(theme) {
   }
 }
 
+function prefersReducedMotion() {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
+// A9: run the DOM theme swap inside a View Transition so the new theme reveals
+// as a growing circle from `origin` ({ x, y } in viewport px — usually the
+// toggle button). Falls back to an instant swap where unsupported or when the
+// user prefers reduced motion.
+function withThemeTransition(origin, mutate) {
+  if (typeof document === "undefined") return mutate();
+  const root = document.documentElement;
+  if (typeof document.startViewTransition !== "function" || prefersReducedMotion()) {
+    mutate();
+    return;
+  }
+  if (origin) {
+    root.style.setProperty("--vt-x", `${origin.x}px`);
+    root.style.setProperty("--vt-y", `${origin.y}px`);
+  }
+  root.classList.add("theme-reveal");
+  const transition = document.startViewTransition(() => mutate());
+  transition.finished.finally(() => root.classList.remove("theme-reveal"));
+}
+
 export function ThemeProvider({ children }) {
   const [theme, setThemeState] = useState("light");
+  // Mirror of `theme` so toggleTheme can read the current value without
+  // re-creating the callback or running side effects inside a state updater.
+  const themeRef = useRef("light");
 
   useIsomorphicLayoutEffect(() => {
     const attr = document.documentElement.dataset.theme;
     if (attr === "light" || attr === "dark") {
+      themeRef.current = attr;
       setThemeState(attr);
       return;
     }
     const next = resolveTheme();
+    themeRef.current = next;
     setThemeState(next);
     applyTheme(next);
   }, []);
 
-  const setTheme = useCallback(next => {
-    setThemeState(next);
-    applyTheme(next);
-  }, []);
-
-  const toggleTheme = useCallback(() => {
-    setThemeState(prev => {
-      const next = prev === "dark" ? "light" : "dark";
+  const setTheme = useCallback((next, origin) => {
+    themeRef.current = next;
+    withThemeTransition(origin, () => {
+      setThemeState(next);
       applyTheme(next);
-      return next;
+    });
+  }, []);
+
+  const toggleTheme = useCallback(origin => {
+    const next = themeRef.current === "dark" ? "light" : "dark";
+    themeRef.current = next;
+    withThemeTransition(origin, () => {
+      setThemeState(next);
+      applyTheme(next);
     });
   }, []);
 

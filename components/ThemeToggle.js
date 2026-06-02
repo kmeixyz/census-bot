@@ -41,11 +41,18 @@ export default function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
   const isLight = theme === "light";
 
+  function handleClick(e) {
+    // Hand the button's center to the provider so the circular reveal (A9)
+    // expands from the toggle rather than the screen center.
+    const rect = e.currentTarget.getBoundingClientRect();
+    toggleTheme({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+  }
+
   return (
     <button
       type="button"
       className={styles.themeToggle}
-      onClick={toggleTheme}
+      onClick={handleClick}
       aria-label={isLight ? "Switch to dark mode" : "Switch to light mode"}
       title={isLight ? "Dark mode" : "Light mode"}
     >

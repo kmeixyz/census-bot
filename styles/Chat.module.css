@@ -1528,3 +1528,123 @@ a.statCardMethCite:hover {
   font-weight: 700;
   margin-right: 0.25rem;
 }
+
+/* ── A6: rotating chevron + grid-row collapse ─────────────────────────────── */
+.chevron {
+  margin-left: 0.35rem;
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: center;
+  flex-shrink: 0;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+/* Buttons that hold a chevron should lay it out inline beside the label. */
+.moreInfoBtn,
+.statCardMethBtn {
+  display: inline-flex;
+  align-items: center;
+}
+
+.collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  /* visibility is delayed via transition so content stays visible through the
+     close animation, then becomes hidden (removing it from the tab order). */
+  transition: grid-template-rows 0.25s ease, opacity 0.25s ease, visibility 0s linear 0.25s;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.collapseOpen {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+  transition: grid-template-rows 0.25s ease, opacity 0.25s ease, visibility 0s;
+}
+
+.collapseInner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* The first child inside a collapse already gets the wrapper's spacing, so its
+   own top margin would leak height while collapsed — neutralize it. */
+.collapseInner > :first-child {
+  margin-top: 0;
+}
+
+/* ── B6: contextual follow-up suggestions ─────────────────────────────────── */
+.followUps {
+  margin-top: 0.7rem;
+  padding-top: 0.6rem;
+  border-top: 1px dashed var(--c-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.followUpsLabel {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--c-muted);
+}
+
+.followUpsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.followUpChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--c-border);
+  background: var(--c-surface);
+  color: var(--c-text-dim);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.16s ease, border-color 0.16s ease, background 0.16s ease, transform 0.1s ease;
+}
+
+.followUpChip::before {
+  content: "↗";
+  font-size: 0.72rem;
+  color: var(--c-accent);
+  opacity: 0.75;
+}
+
+.followUpChip:hover {
+  color: var(--c-accent);
+  border-color: var(--c-accent);
+  background: var(--c-accent-soft);
+}
+
+.followUpChip:active {
+  transform: scale(0.97);
+}
+
+/* ── B5: message-limit counter tones ──────────────────────────────────────── */
+.msgCounterWarn {
+  color: var(--c-accent);
+  font-weight: 600;
+}
+
+.msgCounterDanger {
+  color: var(--error);
+  font-weight: 700;
+}
+
+.msgCounterHint {
+  font-weight: 500;
+  opacity: 0.9;
+}

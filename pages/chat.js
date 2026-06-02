@@ -1,5 +1,6 @@
 // pages/chat.js — Ask Question: Claude-powered Census chatbot
 import { Fragment, useState, useRef, useEffect } from "react";
+import { animate as animateValue, useReducedMotion } from "framer-motion";
 import { useRouter } from "next/router";
 import Head from "next/head";
 import SiteLayout from "../components/SiteLayout";
@@ -222,6 +223,60 @@ function formatStatValue(raw, unit) {
   }
 }
 
+// ── A6: rotating chevron + smooth collapse ──────────────────────────────────
+// Chevron points down when closed, flips up when open (CSS-transitioned).
+function Chevron({ open }) {
+  return (
+    <svg
+      className={`${styles.chevron} ${open ? styles.chevronOpen : ""}`}
+      width="11" height="11" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+      strokeLinejoin="round" aria-hidden="true"
+    >
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  );
+}
+
+// Collapse uses the CSS-grid 0fr→1fr trick (no JS height measurement). Content
+// is always mounted so open/close animates both ways; collapsed when !open.
+function Collapse({ open, children }) {
+  return (
+    <div className={`${styles.collapse} ${open ? styles.collapseOpen : ""}`}>
+      <div className={styles.collapseInner}>{children}</div>
+    </div>
+  );
+}
+
+// ── A1/C2: count-up for the chat StatCard value ─────────────────────────────
+// Animates 0 → raw once, formatting each frame like the API does. Gated behind
+// a "final value in hand" mount (StatCard renders once per answer) and behind
+// prefers-reduced-motion, so a settled number never silently re-animates.
+function CountUpValue({ raw, unit }) {
+  const reduce = useReducedMotion();
+  const num = parseFloat(raw);
+  const [display, setDisplay] = useState(() =>
+    Number.isFinite(num) && num > 0 && !reduce ? formatStatValue(0, unit) : formatStatValue(raw, unit)
+  );
+
+  useEffect(() => {
+    if (reduce || !Number.isFinite(num) || num <= 0) {
+      setDisplay(formatStatValue(raw, unit));
+      return;
+    }
+    const controls = animateValue(0, num, {
+      duration: 0.8,
+      ease: [0.22, 1, 0.36, 1],
+      onUpdate: v => setDisplay(formatStatValue(v, unit)),
+      onComplete: () => setDisplay(formatStatValue(raw, unit)),
+    });
+    return () => controls.stop();
+  // raw+unit identify the answer; StatCard remounts per message so this is once.
+  }, [raw, unit, num, reduce]);
+
+  return <>{display}</>;
+}
+
 // ── Source link ───────────────────────────────────────────────────────────────
 function SourceFooter({ source, metric, place }) {
   const commaIdx = (place || "").indexOf(",");
@@ -368,19 +423,22 @@ function SourceTrailRow({ source }) {
             onClick={() => setOpen(o => !o)}
             aria-expanded={open}
           >
-            {open ? "Hide more information ▲" : "More information ▼"}
+            {open ? "Hide more information" : "More information"}
+            <Chevron open={open} />
           </button>
         )}
       </div>
-      {hasMethPanel && open && (
-        <div className={styles.statCardMethWrap}>
-          <MethodologyPanel
-            tableInfo={source.tableInfo}
-            moeMethodology={source.moeMethodology}
-            nuances={source.nuances}
-            methodology={source.methodology}
-          />
-        </div>
+      {hasMethPanel && (
+        <Collapse open={open}>
+          <div className={styles.statCardMethWrap}>
+            <MethodologyPanel
+              tableInfo={source.tableInfo}
+              moeMethodology={source.moeMethodology}
+              nuances={source.nuances}
+              methodology={source.methodology}
+            />
+          </div>
+        </Collapse>
       )}
     </div>
   );
@@ -453,7 +511,6 @@ function ChartMethodologyNote({ warning }) {
 function StatCard({ structured }) {
   const [methOpen, setMethOpen] = useState(false);
   if (!structured) return null;
-  const value = formatStatValue(structured.value, structured.unit);
   const sourceLabel = structured.source
     || `ACS ${structured.year} ${structured.dataset === "acs1" ? "1-Year" : "5-Year"} Estimates`;
   const tables = Array.isArray(structured.tables) ? structured.tables : [];
@@ -474,7 +531,9 @@ function StatCard({ structured }) {
   return (
     <div className={styles.statCardChat}>
       <div className={styles.statCardTitle}>{title}</div>
-      <div className={styles.statCardValue}>{value}</div>
+      <div className={styles.statCardValue}>
+        <CountUpValue raw={structured.value} unit={structured.unit} />
+      </div>
       {moeFormatted && (
         <div className={styles.statCardMOE}>{moeFormatted} margin of error (90% CI)</div>
       )}
@@ -508,7 +567,8 @@ function StatCard({ structured }) {
               onClick={() => setMethOpen(o => !o)}
               aria-expanded={methOpen}
             >
-              {methOpen ? "Hide more information ▲" : "More information ▼"}
+              {methOpen ? "Hide more information" : "More information"}
+              <Chevron open={methOpen} />
             </button>
           )}
         </div>
@@ -520,15 +580,17 @@ function StatCard({ structured }) {
           <strong>Why 5-Year?</strong> {structured.fallbackReason}
         </div>
       )}
-      {hasMethPanel && methOpen && (
-        <div className={styles.statCardMethWrap}>
-          <MethodologyPanel
-            tableInfo={tableInfo}
-            moeMethodology={moeMethodology}
-            nuances={nuances}
-            methodology={methodology}
-          />
-        </div>
+      {hasMethPanel && (
+        <Collapse open={methOpen}>
+          <div className={styles.statCardMethWrap}>
+            <MethodologyPanel
+              tableInfo={tableInfo}
+              moeMethodology={moeMethodology}
+              nuances={nuances}
+              methodology={methodology}
+            />
+          </div>
+        </Collapse>
       )}
     </div>
   );
@@ -603,6 +665,45 @@ function AlternativesBlock({ alternatives, onPick }) {
   );
 }
 
+// ── B6: contextual follow-up suggestions ────────────────────────────────────
+// Rendered under the most recent answer so the conversation isn't a dead end.
+// Suggestions are tailored to what the answer was (a stat, a chart, or prose).
+function FollowUps({ kind, onPick }) {
+  const byKind = {
+    stat: [
+      "Show this as a trend over time",
+      "Compare with another city",
+      "What's the margin of error here?",
+    ],
+    chart: [
+      "Compare this with another city",
+      "What's the most recent value?",
+    ],
+    prose: [
+      "Show me a related statistic",
+      "Explain this more simply",
+    ],
+  };
+  const items = byKind[kind] || byKind.prose;
+  return (
+    <div className={styles.followUps}>
+      <span className={styles.followUpsLabel}>Keep going</span>
+      <div className={styles.followUpsRow}>
+        {items.map(text => (
+          <button
+            key={text}
+            type="button"
+            className={styles.followUpChip}
+            onClick={() => onPick(text)}
+          >
+            {text}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Clarification card (legacy halt-style picker; kept for safety) ──────────
 function ClarificationCard({ data, onPick, picked }) {
   if (!data) return null;
@@ -664,13 +765,14 @@ function MoreInfo({ methodology, caveats }) {
             onClick={() => setOpen(o => !o)}
             aria-expanded={open}
           >
-            {open ? "Hide details ▲" : "More info ▼"}
+            {open ? "Hide details" : "More info"}
+            <Chevron open={open} />
           </button>
-          {open && (
+          <Collapse open={open}>
             <div className={styles.caveatsBox}>
               {renderMarkdown(caveats)}
             </div>
-          )}
+          </Collapse>
         </>
       )}
     </div>
@@ -1038,7 +1140,12 @@ export default function ChatPage() {
               ) : (
                 <div className={styles.messageList} ref={listRef}>
                   {messages.map((msg, i) => {
-                    const isNewest = i === messages.length - 1 && msg.role === "assistant";
+                    // A4: the newest row (user OR assistant) slides up + fades in.
+                    // The CSS animation fires once on mount; keys are stable so
+                    // earlier rows don't replay when a new message is appended.
+                    const isNewestRow = i === messages.length - 1;
+                    const isNewest = isNewestRow && msg.role === "assistant";
+                    const isLastAssistant = isNewest && !loading;
                     const parsed = msg.role === "assistant" ? safeParse(msg.content) : null;
                     const isTrendChart = parsed?.type === "trend_chart";
                     const isBarChart = parsed?.type === "bar_chart";
@@ -1047,7 +1154,7 @@ export default function ChatPage() {
                     const isClarification = parsed?.type === "clarification";
 
                     return (
-                      <div key={i} className={`${styles.messageRow} ${msg.role === "user" ? styles.messageRowUser : ""} ${isNewest ? styles.messageRowNew : ""}`}>
+                      <div key={i} className={`${styles.messageRow} ${msg.role === "user" ? styles.messageRowUser : ""} ${isNewestRow ? styles.messageRowNew : ""}`}>
                         {msg.role === "assistant" ? <BotAvatar /> : <UserAvatar />}
                         <div className={`${styles.bubble} ${
                           msg.role === "user"
@@ -1119,6 +1226,12 @@ export default function ChatPage() {
                           {msg.role === "assistant" && !isAnyChart && !isClarification && (msg.methodology || msg.caveats) && (
                             <MoreInfo methodology={msg.methodology} caveats={msg.caveats} />
                           )}
+                          {isLastAssistant && !isChartError && !isClarification && !msg.error && !atLimit && (
+                            <FollowUps
+                              kind={msg.structured ? "stat" : isAnyChart ? "chart" : "prose"}
+                              onPick={text => sendMessage(text)}
+                            />
+                          )}
                         </div>
                       </div>
                     );
@@ -1183,7 +1296,23 @@ export default function ChatPage() {
                     </div>
                   </div>
                 )}
-                <div className={styles.msgCounter}>{Math.floor(messages.length / 2)} / {MAX_EXCHANGES} messages used</div>
+                {(() => {
+                  const used = Math.floor(messages.length / 2);
+                  const remaining = MAX_EXCHANGES - used;
+                  const tone = remaining <= 1 ? styles.msgCounterDanger
+                    : remaining <= 3 ? styles.msgCounterWarn : "";
+                  return (
+                    <div className={`${styles.msgCounter} ${tone}`}>
+                      {used} / {MAX_EXCHANGES} messages used
+                      {!atLimit && remaining <= 3 && remaining > 0 && (
+                        <span className={styles.msgCounterHint}>
+                          {" · "}{remaining} {remaining === 1 ? "message" : "messages"} left — at the limit
+                          you&rsquo;ll start a new chat to keep going
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </div>{/* end chatMain */}

@@ -37,8 +37,8 @@
   --chart-tooltip-bg: #ffffff;
   --chart-tooltip-border: #dde3ec;
   --chart-muted:     #4d5768;
-  --chart-faint:     #8a96a8;
-  --chart-source:    #8a96a8;
+  --chart-faint:     #69748a;
+  --chart-source:    #69748a;
   --chart-empty:     #4d5768;
   --result-glow:     0 1px 2px rgba(20, 30, 50, 0.04);
   --chart-card-glow: 0 1px 2px rgba(20, 30, 50, 0.04);
@@ -77,8 +77,8 @@ html[data-theme="light"] {
   --chart-tooltip-bg: #ffffff;
   --chart-tooltip-border: #dde3ec;
   --chart-muted:     #4d5768;
-  --chart-faint:     #8a96a8;
-  --chart-source:    #8a96a8;
+  --chart-faint:     #69748a;
+  --chart-source:    #69748a;
   --chart-empty:     #4d5768;
   --result-glow:     0 1px 2px rgba(20, 30, 50, 0.04);
   --chart-card-glow: 0 1px 2px rgba(20, 30, 50, 0.04);
@@ -115,9 +115,9 @@ html[data-theme="dark"] {
   --chart-tooltip-bg: #232c3a;
   --chart-tooltip-border: rgba(180, 200, 224, 0.22);
   --chart-muted:     #a6b3c4;
-  --chart-faint:     #7e8a9d;
-  --chart-source:    #7e8a9d;
-  --chart-empty:     #7e8a9d;
+  --chart-faint:     #98a4b6;
+  --chart-source:    #98a4b6;
+  --chart-empty:     #98a4b6;
   --result-glow:     0 1px 2px rgba(0, 0, 0, 0.3);
   --chart-card-glow: 0 1px 2px rgba(0, 0, 0, 0.3);
   --metric-label-glow: none;
@@ -196,4 +196,52 @@ html.scrollbar-reveal {
 
 html.scrollbar-reveal::-webkit-scrollbar-thumb {
   background-color: var(--scrollbar-reveal);
+}
+
+/* ── A9: theme toggle circular reveal (View Transitions API) ──────────────────
+   When setTheme runs inside document.startViewTransition, the old and new
+   document snapshots crossfade. We override the new snapshot to clip-reveal
+   from the toggle button's position (set via --vt-x / --vt-y on :root). */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-old(root) {
+  z-index: 1;
+}
+::view-transition-new(root) {
+  z-index: 2;
+}
+html.theme-reveal::view-transition-new(root) {
+  animation: themeCircleIn 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes themeCircleIn {
+  from {
+    clip-path: circle(0% at var(--vt-x, 50%) var(--vt-y, 0%));
+  }
+  to {
+    clip-path: circle(150% at var(--vt-x, 50%) var(--vt-y, 0%));
+  }
+}
+
+/* ── E1: respect prefers-reduced-motion everywhere ───────────────────────────
+   Neutralizes CSS animations/transitions for users who opt out. Framer Motion
+   is handled separately via <MotionConfig reducedMotion="user"> in _app, plus
+   explicit useReducedMotion checks in the imperative count-up / line-draw. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* Skip the circular theme reveal entirely. */
+  html.theme-reveal::view-transition-new(root),
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+  }
 }

@@ -200,7 +200,17 @@ export default function Learn() {
                   : "Loading…"}
             </div>
             <div className={landing.docList}>
-              {docs.map(d => <DocRow key={d.id} doc={d} />)}
+              {docs.length === 0 && !docsError
+                ? Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className={landing.docSkeleton} aria-hidden="true">
+                      <span className={landing.docSkeletonBadge} />
+                      <div className={landing.docSkeletonBody}>
+                        <span className={landing.docSkeletonLine} style={{ width: "70%" }} />
+                        <span className={landing.docSkeletonLine} style={{ width: "92%" }} />
+                      </div>
+                    </div>
+                  ))
+                : docs.map(d => <DocRow key={d.id} doc={d} />)}
             </div>
           </section>
         </div>

@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import SiteLayout from "../../components/SiteLayout";
+import WizardSteps from "../../components/WizardSteps";
 import ex from "../../styles/Explore.module.css";
 import {
   EXPLORE_METRICS_STORAGE_KEY,
@@ -244,10 +245,7 @@ export default function ExploreMetrics() {
           <h1 className={ex.pageTitle}>Quick Lookup</h1>
 
           <div className={ex.progressBlock}>
-            <div className={ex.progressRow}>
-              <span>Step 1 of 3</span>
-              <span className={ex.progressPct}>33% Complete</span>
-            </div>
+            <WizardSteps current={1} />
             <div className={ex.progressTrack}>
               <div className={ex.progressFill} style={{ width: `${progressWidth}%` }} />
             </div>
