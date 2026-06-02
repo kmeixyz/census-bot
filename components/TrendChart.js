@@ -330,6 +330,42 @@ export default function TrendChart({ data, expanded = false, inline = false, sho
   };
   const ys = (v) => PT + ((maxV - v) / (maxV - minV || 1)) * (H - PT - PB);
 
+  // ── Multi-series end-of-line label de-clutter ──────────────────────────────
+  // Each series draws a "$value" label at its last point. When two series end
+  // at nearly the same value (e.g. two metros both ~$1,729), those labels would
+  // stack on top of each other. Pre-compute a spaced-out y per series: anchor at
+  // the true data y, sort top→bottom, then push apart any labels closer than
+  // MIN_GAP. If the spread overflows the bottom edge, shift the whole stack up.
+  const endLabelY = useMemo(() => {
+    if (!isMulti) return new Map();
+    const MIN_GAP = 13;
+    const raw = visibleSeries
+      .map((s, sIdx) => {
+        const last = s.points[s.points.length - 1];
+        return last ? { sIdx, dataY: ys(last.numericValue), y: ys(last.numericValue) } : null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.dataY - b.dataY);
+    // Forward pass: push each label down so it clears the one above it.
+    for (let i = 1; i < raw.length; i++) {
+      if (raw[i].y - raw[i - 1].y < MIN_GAP) raw[i].y = raw[i - 1].y + MIN_GAP;
+    }
+    // If the stack ran off the bottom, slide it up and re-resolve upward.
+    const bottom = H - 2;
+    const overflow = raw.length ? raw[raw.length - 1].y - bottom : 0;
+    if (overflow > 0) {
+      for (let i = raw.length - 1; i >= 0; i--) {
+        raw[i].y -= overflow;
+        if (i < raw.length - 1 && raw[i + 1].y - raw[i].y < MIN_GAP) {
+          raw[i].y = raw[i + 1].y - MIN_GAP;
+        }
+      }
+    }
+    const m = new Map();
+    raw.forEach(d => m.set(d.sIdx, { y: d.y, dataY: d.dataY }));
+    return m;
+  }, [isMulti, visibleSeries, minV, maxV, H, PT, PB]);
+
   const wrapperStyle = {
     opacity: visible ? 1 : 0,
     transform: visible ? "translateY(0)" : "translateY(8px)",
@@ -551,11 +587,19 @@ export default function TrendChart({ data, expanded = false, inline = false, sho
                     const last = s.points[s.points.length - 1];
                     const lx = xs(last.year);
                     const ly = ys(last.numericValue);
+                    // De-cluttered label y (falls back to the dot's y).
+                    const labelY = endLabelY.get(sIdx)?.y ?? ly;
+                    const offset = Math.abs(labelY - ly) > 1.5;
                     return (
                       <g key={`end-${sIdx}`}>
                         <circle cx={lx} cy={ly} r={3.5}
                                 fill={color} stroke="var(--chart-surface, #fff)" strokeWidth="1.5"/>
-                        <text x={lx + 6} y={ly}
+                        {/* Leader line connecting the dot to a nudged label. */}
+                        {offset && (
+                          <line x1={lx + 4} y1={ly} x2={lx + 6} y2={labelY}
+                                stroke={color} strokeWidth="1" strokeOpacity="0.55"/>
+                        )}
+                        <text x={lx + 8} y={labelY}
                               textAnchor="start" dominantBaseline="middle"
                               fontSize="10" fontWeight={700}
                               fill={color}
