@@ -303,6 +303,7 @@ export default function ExploreResults() {
   // B2: per-metric trend for the compare city, overlaid onto the primary chart.
   const [cmpTrendByQuery, setCmpTrendByQuery] = useState({});
   const [cmpTrendLoadingKeys, setCmpTrendLoadingKeys] = useState(new Set());
+  const [showCmpTrendMap, setShowCmpTrendMap] = useState({});
 
   const fromProgress = useMemo(() => {
     const raw = router.query.from;
@@ -380,7 +381,8 @@ export default function ExploreResults() {
   async function runCompare() {
     if (!cmpState || !cmpCity) return;
     setCmpLoading(true);
-    setCmpTrendByQuery({}); // drop overlays from any previous compare city
+    setCmpTrendByQuery({});
+    setShowCmpTrendMap({}); // drop overlays from any previous compare city
     const entries = await Promise.all(
       metrics.map(async metric => {
         const query = buildCityStateQuery(metric, cmpCity, cmpState);
@@ -432,6 +434,16 @@ export default function ExploreResults() {
     const trend = trendByQuery[query];
     if (!trend) { handleTrend(query, metricLabel); }
     else { setShowTrendMap(prev => ({ ...prev, [query]: !prev[query] })); }
+  }
+
+  function toggleCmpTrend(query, metricLabel) {
+    const trend = cmpTrendByQuery[query];
+    if (!trend) {
+      loadCmpTrend(query, metricLabel);
+      setShowCmpTrendMap(prev => ({ ...prev, [query]: true }));
+    } else {
+      setShowCmpTrendMap(prev => ({ ...prev, [query]: !prev[query] }));
+    }
   }
 
   // B2: fetch the compare city's trend for one metric so it can be overlaid as
@@ -726,15 +738,51 @@ export default function ExploreResults() {
                         <SourceFooter source={result.source} metric={result.metric} city={city} stateName={stateName} />
                       </div>
 
-                      {showPair && hasCmp && (
-                        <div className={ex.statCard} style={{ "--card-accent": color, animationDelay: `${index * 70}ms` }}>
-                          <div className={ex.statMeta}>
-                            <span className={ex.statLabel}>{cmpRow.result.metric}</span>
+                      {showPair && hasCmp && (() => {
+                        const cmpChartVisible = showCmpTrendMap[row.query] && cmpTrend && !cmpTrend.error;
+                        const cmpChartBusy = cmpTrendLoadingKeys.has(row.query);
+                        const cmpChartData = cmpTrend && !cmpTrend.error && cmpTrend.points ? {
+                          type: "trend_chart",
+                          metric: result.metric,
+                          location: cmpTrend.label || (cmpState ? `${cmpCity}, ${cmpState}` : cmpCity),
+                          points: cmpTrend.points,
+                          source: cmpRow.result.source,
+                        } : null;
+                        return (
+                          <div className={ex.statCard} style={{ "--card-accent": color, animationDelay: `${index * 70}ms` }}>
+                            <div className={ex.statMeta}>
+                              <span className={ex.statLabel}>{cmpRow.result.metric}</span>
+                            </div>
+                            <div className={ex.statValue}><AnimatedNumber value={cmpRow.result.value} /></div>
+                            <div className={ex.statLocation}>{cmpRow.result.location}</div>
+                            <div className={ex.statDivider} />
+                            <button
+                              type="button"
+                              className={`${ex.statChartBtn}${cmpChartVisible ? ` ${ex.statChartBtnActive}` : ""}`}
+                              disabled={cmpChartBusy}
+                              onClick={() => toggleCmpTrend(row.query, result.metric)}
+                              aria-expanded={cmpChartVisible}
+                            >
+                              {cmpChartBusy ? <><span className={ex.searchLoadingSpinner} /> Loading...</> : cmpChartVisible ? "↑ Hide Chart" : "↓ Show Trend"}
+                            </button>
+                            <div className={`${ex.chartCollapse} ${cmpChartVisible ? ex.chartCollapseOpen : ""}`}>
+                              <div className={ex.chartCollapseInner}>
+                                {cmpChartData && (
+                                  <div className={ex.inlineChart}>
+                                    <TrendChart data={cmpChartData} inline showToolbar />
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            {cmpTrend?.error && (
+                              <p className={ex.hint} style={{ color: "var(--error)", marginTop: 8 }}>
+                                {typeof cmpTrend.error === "string" ? cmpTrend.error : "Could not load trend."}
+                              </p>
+                            )}
+                            <SourceFooter source={cmpRow.result.source} metric={result.metric} city={cmpCity} stateName={cmpState} />
                           </div>
-                          <div className={ex.statValue}><AnimatedNumber value={cmpRow.result.value} /></div>
-                          <div className={ex.statLocation}>{cmpRow.result.location}</div>
-                        </div>
-                      )}
+                        );
+                      })()}
                     </div>
                   );
                 })}
@@ -763,7 +811,7 @@ export default function ExploreResults() {
                     <button
                       type="button"
                       className={ex.btnBack}
-                      onClick={() => { setShowCompare(false); setCmpState(""); setCmpCity(""); setCmpResults([]); setCmpTrendByQuery({}); }}
+                      onClick={() => { setShowCompare(false); setCmpState(""); setCmpCity(""); setCmpResults([]); setCmpTrendByQuery({}); setShowCmpTrendMap({}); }}
                     >
                       Cancel
                     </button>
