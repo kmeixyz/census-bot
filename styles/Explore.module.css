@@ -62,7 +62,7 @@
 @media (max-width: 720px) {
   .progressBlock {
     position: sticky;
-    top: 64px;
+    top: 60px;
     z-index: 30;
     background: var(--bg);
     padding: 0.6rem 0 0.5rem;
@@ -76,7 +76,7 @@
 
 @media (max-width: 400px) {
   .progressBlock {
-    top: 57px;
+    top: 58px;
   }
 }
 
