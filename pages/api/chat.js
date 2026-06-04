@@ -920,7 +920,7 @@ async function runAcsVariableTool(toolInput) {
         unit: finalUnit,
         source: `${sourceLabel}, U.S. Census Bureau`,
         ...(fallbackReason ? { fallbackReason } : {}),
-        tables: [{ tableId: table_id, url: buildCensusTableUrl(table_id, dataset, parsed.geoParams) }],
+        tables: [{ tableId: table_id, url: buildCensusTableUrl(table_id, dataset, fetchResult.resolvedGeoParams || parsed.geoParams) }],
       },
     };
   } catch (err) {
@@ -1021,7 +1021,7 @@ async function runCensusTool(toolInput) {
         unit: finalFormat,
         source: `${sourceLabel}, U.S. Census Bureau`,
         ...(fallbackReason ? { fallbackReason } : {}),
-        tables: buildGeoSourceTables(variable.id, dataset, geoParams),
+        tables: buildGeoSourceTables(variable.id, dataset, fetchResult.resolvedGeoParams || geoParams),
       },
     };
   } catch (err) {
@@ -1504,7 +1504,7 @@ async function performPickedLookup({ pickedGeo, pickedMetric, userMsg }) {
       geoType: pickedGeo?.geoType || "place",
       dataset,
       source: sourceLabel,
-      tables: buildGeoSourceTables(variable.id, dataset, geoParams),
+      tables: buildGeoSourceTables(variable.id, dataset, fetchResult.resolvedGeoParams || geoParams),
       ...(fallbackReason ? { fallbackReason } : {}),
     },
   };
@@ -1955,7 +1955,7 @@ async function handleStatisticModeFastPath(req, res, userMsg, mode, opts = {}) {
     unit: format,
     dataset,
     source: buildSourceLabel(dataset, CURRENT_ACS_YEAR),
-    tables: buildGeoSourceTables(variable.id, dataset, geoParams),
+    tables: buildGeoSourceTables(variable.id, dataset, fetchResult.resolvedGeoParams || geoParams),
     ...(fallbackReason ? { fallbackReason } : {}),
   };
   await attachNuancesAndMethodology(structured, variable.id);
