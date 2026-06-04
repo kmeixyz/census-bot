@@ -3,10 +3,12 @@ import { Fragment, useState, useRef, useEffect } from "react";
 import { animate as animateValue, useReducedMotion } from "framer-motion";
 import { useRouter } from "next/router";
 import Head from "next/head";
+import Link from "next/link";
 import SiteLayout from "../components/SiteLayout";
 import TrendChart from "../components/TrendChart";
 import BarChart from "../components/BarChart";
 import ChatInputBox from "../components/ChatInputBox";
+import ThemeToggle from "../components/ThemeToggle";
 import styles from "../styles/Chat.module.css";
 import { buildCensusProfileUrl } from "../lib/censusConstants";
 import { usePlaceGeoid } from "../lib/usePlaceGeoid";
@@ -880,6 +882,16 @@ function IcoClose() {
   );
 }
 
+function IcoNewChat() {
+  // Compose/pencil — the "New Chat" affordance in the mobile top bar.
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+    </svg>
+  );
+}
+
 const STORAGE_KEY = "censusbot_conversations";
 
 function loadConversations() {
@@ -1163,25 +1175,46 @@ export default function ChatPage() {
                 ))
               )}
             </div>
+
+            {/* Drawer footer nav — mobile only. The primary workflows + About
+                live here on the chat page (the global header/bottom-nav are
+                hidden so the input can own the bottom edge). */}
+            <div className={styles.drawerFooter}>
+              <Link href="/explore" className={styles.drawerNavLink}>Quick Lookup</Link>
+              <Link href="/about" className={styles.drawerNavLink}>About</Link>
+              <div className={styles.drawerThemeRow}>
+                <span className={styles.drawerThemeLabel}>Theme</span>
+                <ThemeToggle />
+              </div>
+            </div>
           </div>
 
           {/* Main chat area */}
           <div className={styles.chatMain}>
 
-          <div className={styles.chatInner}>
-              {/* Mobile-only header bar: hamburger opens the chat-history drawer */}
-              <div className={styles.mobileChatBar}>
-                <button
-                  type="button"
-                  className={styles.historyTrigger}
-                  aria-label="Open chat history"
-                  aria-expanded={historyOpen}
-                  onClick={() => setHistoryOpen(true)}
-                >
-                  <IcoMenu />
-                </button>
-              </div>
+            {/* Mobile-only sticky top bar: hamburger (history) · CensusBot · New chat */}
+            <header className={styles.mobileTopBar}>
+              <button
+                type="button"
+                className={styles.topBarBtn}
+                aria-label="Open chat history"
+                aria-expanded={historyOpen}
+                onClick={() => setHistoryOpen(true)}
+              >
+                <IcoMenu />
+              </button>
+              <Link href="/" className={styles.mobileTopBarTitle}>CensusBot</Link>
+              <button
+                type="button"
+                className={styles.topBarBtn}
+                aria-label="New chat"
+                onClick={clearChat}
+              >
+                <IcoNewChat />
+              </button>
+            </header>
 
+          <div className={styles.chatInner}>
               {/* Message list — or welcome+suggestions when empty */}
               {messages.length === 0 && !loading ? (
                 <div className={styles.emptyState}>

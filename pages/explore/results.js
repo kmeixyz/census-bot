@@ -527,14 +527,10 @@ export default function ExploreResults() {
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
       </Head>
       <SiteLayout>
-        <motion.div
-          className={ex.wizardPage}
-          initial={{ opacity: 0, x: fromProgress > targetProgress ? -48 : 48 }}
-          animate={exitDir !== 0
-            ? { opacity: 0, x: exitDir * 48, transition: { duration: 0.2, ease: [0.4, 0, 1, 1] } }
-            : { opacity: 1, x: 0, transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] } }
-          }
-        >
+        {/* Sticky header lives OUTSIDE the animated wrapper: a persistent
+            transform on an ancestor makes position:sticky jitter on iOS, so
+            only the content below slides during step transitions. */}
+        <div className={ex.wizardPage}>
           <h1 className={ex.pageTitle}>Quick Lookup</h1>
 
           <div className={ex.progressBlock}>
@@ -544,6 +540,14 @@ export default function ExploreResults() {
             </div>
           </div>
 
+          <motion.div
+            className={ex.wizardContent}
+            initial={{ opacity: 0, x: fromProgress > targetProgress ? -48 : 48 }}
+            animate={exitDir !== 0
+              ? { opacity: 0, x: exitDir * 48, transition: { duration: 0.2, ease: [0.4, 0, 1, 1] } }
+              : { opacity: 1, x: 0, transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] } }
+            }
+          >
           <div className={ex.card}>
             <p className={ex.question}>Results for {city}{stateName ? `, ${stateName}` : ""}</p>
             <div className={ex.footerNav} style={{ marginTop: "2.25rem", maxWidth: "none" }}>
@@ -783,7 +787,8 @@ export default function ExploreResults() {
               </button>
             </div>
           )}
-        </motion.div>
+          </motion.div>
+        </div>
       </SiteLayout>
 
       {/* ── Fullscreen chart modal ── */}

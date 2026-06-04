@@ -7,6 +7,17 @@
   margin: 0 auto;
 }
 
+/* Animated content wrapper — holds everything below the sticky header so the
+   step-transition slide doesn't put a transform on the sticky element's
+   ancestor chain (which makes position:sticky jitter on iOS). */
+.wizardContent {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+}
+
 .pageTitle {
   font-size: clamp(1.45rem, 3.5vw, 1.85rem);
   font-weight: 600;

@@ -317,3 +317,30 @@
     font-size: 1.05rem;
   }
 }
+
+/* ── Chat route (mobile): give the chat its own full-viewport app shell ─────
+   The chat page renders its own sticky top bar + pinned input, so the global
+   header and bottom nav step aside and the layout fills exactly 100dvh. */
+@media (max-width: 720px) {
+  .chatRoute {
+    height: 100vh;
+    height: 100dvh;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow: hidden;
+  }
+
+  .chatRoute .nav,
+  .chatRoute .bottomNav {
+    display: none;
+  }
+
+  .chatRoute .main {
+    height: 100vh;
+    height: 100dvh;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+}

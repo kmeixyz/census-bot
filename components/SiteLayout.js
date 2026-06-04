@@ -111,7 +111,7 @@ export default function SiteLayout({ children }) {
   };
 
   return (
-    <div className={styles.shell}>
+    <div className={`${styles.shell} ${chatActive ? styles.chatRoute : ""}`}>
       <nav className={`${styles.nav} ${scrolled ? styles.navScrolled : ""}`}>
         <div className={styles.navLeft}>
           <Link href="/" className={styles.logoText}>
