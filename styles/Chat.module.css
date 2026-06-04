@@ -123,6 +123,48 @@
   padding: 1rem 0.65rem;
 }
 
+/* Subtle divider separating the New chat action from the history list. */
+.sidebarDivider {
+  height: 1px;
+  background: var(--c-border);
+  margin: 0 0.75rem 0.35rem;
+  flex-shrink: 0;
+}
+
+/* ── Mobile history drawer scaffolding (hidden on desktop) ─────────────────── */
+.historyBackdrop,
+.drawerHeader,
+.mobileChatBar {
+  display: none;
+}
+
+.drawerTitle {
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--c-muted);
+}
+
+.drawerClose,
+.historyTrigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: 1px solid var(--c-border);
+  background: var(--c-surface);
+  color: var(--c-text);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.drawerClose:hover,
+.historyTrigger:hover {
+  border-color: var(--c-border-hover);
+  color: var(--c-accent);
+}
+
 /* ── Chat main area ───────────────────────────────────────── */
 .chatMain {
   flex: 1;
@@ -859,12 +901,120 @@
 }
 
 @media (max-width: 720px) {
-  .chatSidebar {
-    display: none;
-  }
-
   .chatMain {
     padding-left: 0;
+  }
+
+  /* Mobile header bar holding the hamburger trigger (top-left). */
+  .mobileChatBar {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    padding: 0.15rem 0 0.5rem;
+  }
+
+  .historyTrigger {
+    width: 44px;
+    height: 44px;
+    margin-left: -0.25rem;
+  }
+
+  /* Dimming overlay — covers the chat behind the drawer. Kept mounted so it
+     can fade both in (open) and out (dismiss). */
+  .historyBackdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 190;
+    background: rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0s linear 0.3s;
+  }
+
+  .historyBackdropOpen {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.3s ease;
+  }
+
+  /* The sidebar becomes a left slide-in drawer over the chat. */
+  .chatSidebar {
+    display: flex;
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    height: 100dvh;
+    width: 78%;
+    max-width: 320px;
+    z-index: 200;
+    background: var(--c-bg);
+    border-right: 1px solid var(--c-border);
+    box-shadow: 2px 0 28px rgba(0, 0, 0, 0.22);
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-out;
+    will-change: transform;
+  }
+
+  .chatSidebarOpen {
+    transform: translateX(0);
+  }
+
+  /* Drawer header with the explicit close (X) at the top-right. */
+  .drawerHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.65rem;
+  }
+
+  .drawerClose {
+    width: 40px;
+    height: 40px;
+    border-color: transparent;
+    background: transparent;
+  }
+
+  .sidebarTop {
+    padding: 0.9rem 0.85rem 0.7rem;
+  }
+
+  /* New chat — full-width, generous touch target. */
+  .newChatBtn {
+    padding: 0.85rem 1rem;
+    font-size: 0.95rem;
+    border-radius: 11px;
+    min-height: 48px;
+  }
+
+  /* Finger-friendly history rows: generous vertical padding so adjacent
+     items aren't mis-tapped. */
+  .sidebarList {
+    padding: 0.5rem 0.6rem 1.5rem;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .sidebarItem {
+    padding: 0.85rem 0.75rem;
+    gap: 0.28rem;
+    min-height: 56px;
+    border-radius: 10px;
+  }
+
+  .sidebarItemTitle {
+    font-size: 0.95rem;
+  }
+
+  .sidebarItemTime {
+    font-size: 0.8rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chatSidebar,
+  .historyBackdrop {
+    transition: none;
   }
 }
 

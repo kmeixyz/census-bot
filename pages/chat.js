@@ -861,6 +861,25 @@ function IcoCompose() {
   );
 }
 
+function IcoMenu() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <line x1="3" y1="12" x2="21" y2="12" />
+      <line x1="3" y1="18" x2="21" y2="18" />
+    </svg>
+  );
+}
+
+function IcoClose() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+
 const STORAGE_KEY = "censusbot_conversations";
 
 function loadConversations() {
@@ -887,6 +906,8 @@ export default function ChatPage() {
   const [minimizedCharts, setMinimizedCharts] = useState({});
   const [conversations, setConversations] = useState([]);
   const [conversationId, setConversationId] = useState(() => `conv_${Date.now()}`);
+  // Mobile-only: chat-history drawer open state.
+  const [historyOpen, setHistoryOpen] = useState(false);
   // doc_id → { title, has_pdf } for resolving chunk-id citations to readable titles.
   // Loaded once on first ACS-cited message; index endpoint gracefully degrades if absent.
   const [docMap, setDocMap] = useState(() => new Map());
@@ -902,6 +923,14 @@ export default function ChatPage() {
   useEffect(() => {
     setConversations(loadConversations());
   }, []);
+
+  // Close the mobile history drawer on Escape.
+  useEffect(() => {
+    if (!historyOpen) return;
+    const onKey = e => { if (e.key === "Escape") setHistoryOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [historyOpen]);
 
   // Auto-save after each completed AI response.
   useEffect(() => {
@@ -1066,6 +1095,7 @@ export default function ChatPage() {
     setExpandedChartIndex(null);
     setMinimizedCharts({});
     setConversationId(`conv_${Date.now()}`);
+    setHistoryOpen(false);
     setTimeout(() => textareaRef.current?.focus(), 50);
   }
 
@@ -1075,6 +1105,7 @@ export default function ChatPage() {
     setInput("");
     setExpandedChartIndex(null);
     setMinimizedCharts({});
+    setHistoryOpen(false);
     setTimeout(() => textareaRef.current?.focus(), 50);
   }
 
@@ -1088,13 +1119,33 @@ export default function ChatPage() {
       <SiteLayout>
         <div className={styles.chatPage}>
 
-          {/* Sidebar */}
-          <div className={styles.chatSidebar}>
+          {/* Mobile-only dimming backdrop behind the history drawer */}
+          <div
+            className={`${styles.historyBackdrop} ${historyOpen ? styles.historyBackdropOpen : ""}`}
+            onClick={() => setHistoryOpen(false)}
+            aria-hidden
+          />
+
+          {/* Sidebar (desktop) / slide-in history drawer (mobile) */}
+          <div className={`${styles.chatSidebar} ${historyOpen ? styles.chatSidebarOpen : ""}`}>
             <div className={styles.sidebarTop}>
+              {/* Drawer header with explicit close — mobile only */}
+              <div className={styles.drawerHeader}>
+                <span className={styles.drawerTitle}>Chats</span>
+                <button
+                  type="button"
+                  className={styles.drawerClose}
+                  aria-label="Close chat history"
+                  onClick={() => setHistoryOpen(false)}
+                >
+                  <IcoClose />
+                </button>
+              </div>
               <button type="button" className={styles.newChatBtn} onClick={clearChat}>
                 <IcoCompose /> New chat
               </button>
             </div>
+            <div className={styles.sidebarDivider} aria-hidden />
             <div className={styles.sidebarList}>
               {conversations.length === 0 ? (
                 <p className={styles.sidebarEmpty}>No conversations yet</p>
@@ -1118,6 +1169,19 @@ export default function ChatPage() {
           <div className={styles.chatMain}>
 
           <div className={styles.chatInner}>
+              {/* Mobile-only header bar: hamburger opens the chat-history drawer */}
+              <div className={styles.mobileChatBar}>
+                <button
+                  type="button"
+                  className={styles.historyTrigger}
+                  aria-label="Open chat history"
+                  aria-expanded={historyOpen}
+                  onClick={() => setHistoryOpen(true)}
+                >
+                  <IcoMenu />
+                </button>
+              </div>
+
               {/* Message list — or welcome+suggestions when empty */}
               {messages.length === 0 && !loading ? (
                 <div className={styles.emptyState}>
