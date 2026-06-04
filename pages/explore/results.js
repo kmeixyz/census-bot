@@ -629,7 +629,7 @@ export default function ExploreResults() {
                 ))}
               </div>
             ) : (
-              <div className={ex.resultGrid}>
+              <div className={`${ex.resultGrid}${cmpResults.length > 0 ? ` ${ex.resultGridCompare}` : ""}`}>
                 {results.map((row, index) => {
                   if (row.error) {
                     return (
@@ -666,73 +666,75 @@ export default function ExploreResults() {
                         }
                       : trend;
 
+                  const showPair = cmpResults.length > 0;
+
                   return (
-                    <div key={row.query} className={ex.statCard} style={{ "--card-accent": color, animationDelay: `${index * 70}ms` }}>
-                      <div className={ex.statMeta}>
-                        <span className={ex.statLabel}>{result.metric}</span>
-                      </div>
-
-                      <div className={ex.statValueRow}>
-                        <div>
-                          <div className={ex.statValue}><AnimatedNumber value={result.value} /></div>
-                          <div className={ex.statLocation}>{result.location}</div>
+                    <div key={row.query} className={showPair ? ex.statCardPair : undefined}>
+                      <div className={ex.statCard} style={{ "--card-accent": color, animationDelay: `${index * 70}ms` }}>
+                        <div className={ex.statMeta}>
+                          <span className={ex.statLabel}>{result.metric}</span>
                         </div>
-                        {hasCmp && (
-                          <div className={ex.cmpValueBlock}>
-                            <div className={ex.cmpValue}>{cmpRow.result.value}</div>
-                            <div className={ex.cmpLocation}>{cmpCity}, {cmpState}</div>
+
+                        <div className={ex.statValueRow}>
+                          <div>
+                            <div className={ex.statValue}><AnimatedNumber value={result.value} /></div>
+                            <div className={ex.statLocation}>{result.location}</div>
                           </div>
-                        )}
-                      </div>
-
-                      <div className={ex.statDivider} />
-                      <button
-                        type="button"
-                        className={`${ex.statChartBtn}${chartVisible ? ` ${ex.statChartBtnActive}` : ""}`}
-                        disabled={trendBusy}
-                        onClick={() => toggleTrend(row.query, result.metric)}
-                        aria-expanded={chartVisible}
-                      >
-                        {trendBusy ? <><span className={ex.searchLoadingSpinner} /> Loading...</> : chartVisible ? "↑ Hide Chart" : "↓ Show Trend"}
-                      </button>
-
-                      {/* Grid-row collapse: the chart unrolls smoothly and
-                          pushes the content below it down gently, rather than
-                          snapping open. The wrapper is always mounted so the
-                          0fr→1fr transition fires on first reveal too. */}
-                      <div className={`${ex.chartCollapse} ${chartVisible ? ex.chartCollapseOpen : ""}`}>
-                        <div className={ex.chartCollapseInner}>
-                          {trend && !trend.error && (
-                            <div className={ex.inlineChart}>
-                              <TrendChart
-                                data={combinedTrend}
-                                inline
-                                showToolbar
-                                onExpand={() => setExpandedQuery(row.query)}
-                              />
-                              {hasCmp && cmpTrendBusy && (
-                                <p className={ex.hint} style={{ textAlign: "left", marginTop: 6 }}>
-                                  <span className={ex.searchLoadingSpinner} style={{ verticalAlign: "middle", marginRight: 6 }} />
-                                  Adding {cmpCity} to the chart…
-                                </p>
-                              )}
-                              {(() => {
-                                // Single-series gets the prose summary; the combined
-                                // chart speaks for itself via its legend + labels.
-                                if (combinedTrend?.series) return null;
-                                const summary = buildTrendSummary(trend.points, result.metric);
-                                return summary ? <p className={ex.trendSummary}>{summary}</p> : null;
-                              })()}
-                            </div>
-                          )}
                         </div>
+
+                        <div className={ex.statDivider} />
+                        <button
+                          type="button"
+                          className={`${ex.statChartBtn}${chartVisible ? ` ${ex.statChartBtnActive}` : ""}`}
+                          disabled={trendBusy}
+                          onClick={() => toggleTrend(row.query, result.metric)}
+                          aria-expanded={chartVisible}
+                        >
+                          {trendBusy ? <><span className={ex.searchLoadingSpinner} /> Loading...</> : chartVisible ? "↑ Hide Chart" : "↓ Show Trend"}
+                        </button>
+
+                        <div className={`${ex.chartCollapse} ${chartVisible ? ex.chartCollapseOpen : ""}`}>
+                          <div className={ex.chartCollapseInner}>
+                            {trend && !trend.error && (
+                              <div className={ex.inlineChart}>
+                                <TrendChart
+                                  data={combinedTrend}
+                                  inline
+                                  showToolbar
+                                  onExpand={() => setExpandedQuery(row.query)}
+                                />
+                                {hasCmp && cmpTrendBusy && (
+                                  <p className={ex.hint} style={{ textAlign: "left", marginTop: 6 }}>
+                                    <span className={ex.searchLoadingSpinner} style={{ verticalAlign: "middle", marginRight: 6 }} />
+                                    Adding {cmpCity} to the chart…
+                                  </p>
+                                )}
+                                {(() => {
+                                  if (combinedTrend?.series) return null;
+                                  const summary = buildTrendSummary(trend.points, result.metric);
+                                  return summary ? <p className={ex.trendSummary}>{summary}</p> : null;
+                                })()}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        {hasTrendError && (
+                          <p className={ex.hint} style={{ color: "var(--error)", marginTop: 8 }}>
+                            {typeof trend.error === "string" ? trend.error : "Could not load trend."}
+                          </p>
+                        )}
+                        <SourceFooter source={result.source} metric={result.metric} city={city} stateName={stateName} />
                       </div>
-                      {hasTrendError && (
-                        <p className={ex.hint} style={{ color: "var(--error)", marginTop: 8 }}>
-                          {typeof trend.error === "string" ? trend.error : "Could not load trend."}
-                        </p>
+
+                      {showPair && hasCmp && (
+                        <div className={ex.statCard} style={{ "--card-accent": color, animationDelay: `${index * 70}ms` }}>
+                          <div className={ex.statMeta}>
+                            <span className={ex.statLabel}>{cmpRow.result.metric}</span>
+                          </div>
+                          <div className={ex.statValue}><AnimatedNumber value={cmpRow.result.value} /></div>
+                          <div className={ex.statLocation}>{cmpRow.result.location}</div>
+                        </div>
                       )}
-                      <SourceFooter source={result.source} metric={result.metric} city={city} stateName={stateName} />
                     </div>
                   );
                 })}
@@ -745,7 +747,7 @@ export default function ExploreResults() {
             <div className={ex.compareSection}>
               {!showCompare ? (
                 <button type="button" className={ex.btnCompare} onClick={() => setShowCompare(true)}>
-                  ＋ Compare With Another {isCountyPrimary ? "County" : "City"}
+                  ＋ Compare With Another {isCountyPrimary ? "County" : "Location"}
                 </button>
               ) : (
                 <div className={ex.compareCard}>
@@ -754,7 +756,7 @@ export default function ExploreResults() {
                     city={cmpCity}
                     stateName={cmpState}
                     inputId="compare-place"
-                    geoTypeFilter={isCountyPrimary ? "county" : "place"}
+                    geoTypeFilter={isCountyPrimary ? "county" : null}
                     onSelect={(c, s) => { setCmpCity(c); setCmpState(s); setCmpResults([]); setCmpTrendByQuery({}); }}
                   />
                   <div className={ex.compareActions}>

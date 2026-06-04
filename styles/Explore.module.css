@@ -894,6 +894,27 @@
   }
 }
 
+.resultGridCompare {
+  grid-template-columns: 1fr;
+}
+
+.statCardPair {
+  display: flex;
+  gap: 1.25rem;
+  align-items: stretch;
+}
+
+.statCardPair > .statCard {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .statCardPair {
+    flex-direction: column;
+  }
+}
+
 .statCard {
   background: var(--surface);
   border: 1px solid var(--border);
