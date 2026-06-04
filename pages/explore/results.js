@@ -449,7 +449,7 @@ export default function ExploreResults() {
   // B2: fetch the compare city's trend for one metric so it can be overlaid as
   // a second series on the primary chart. Mirrors handleTrend but for cmpCity.
   async function loadCmpTrend(query, metricLabel) {
-    if (!cmpCity || !cmpState) return;
+    if (!cmpCity) return;
     setCmpTrendLoadingKeys(prev => new Set([...prev, query]));
     try {
       const res = await fetch("/api/trend", {
@@ -463,7 +463,7 @@ export default function ExploreResults() {
       } else {
         const points = Array.isArray(data?.points) ? data.points : [];
         setCmpTrendByQuery(prev => ({ ...prev, [query]: {
-          label: data?.locationLabel || `${cmpCity}, ${cmpState}`,
+          label: data?.locationLabel || (cmpState ? `${cmpCity}, ${cmpState}` : cmpCity),
           points: points.map(p => ({ year: Number(p.year), numericValue: Number(p.numericValue) })),
         } }));
       }
