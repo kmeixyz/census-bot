@@ -98,6 +98,8 @@ export default function About() {
             </a>
           </p>
         </section>
+        <p className={landing.sectionBody}>Contact email: JoeGermuska@northwestern.edu</p>
+
       </SiteLayout>
     </>
   );
