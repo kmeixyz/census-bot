@@ -692,29 +692,37 @@ export default function ExploreResults() {
                         {trendBusy ? <><span className={ex.searchLoadingSpinner} /> Loading...</> : chartVisible ? "↑ Hide Chart" : "↓ Show Trend"}
                       </button>
 
-                      {chartVisible && (
-                        <div className={ex.inlineChart}>
-                          <TrendChart
-                            data={combinedTrend}
-                            inline
-                            showToolbar
-                            onExpand={() => setExpandedQuery(row.query)}
-                          />
-                          {hasCmp && cmpTrendBusy && (
-                            <p className={ex.hint} style={{ textAlign: "left", marginTop: 6 }}>
-                              <span className={ex.searchLoadingSpinner} style={{ verticalAlign: "middle", marginRight: 6 }} />
-                              Adding {cmpCity} to the chart…
-                            </p>
+                      {/* Grid-row collapse: the chart unrolls smoothly and
+                          pushes the content below it down gently, rather than
+                          snapping open. The wrapper is always mounted so the
+                          0fr→1fr transition fires on first reveal too. */}
+                      <div className={`${ex.chartCollapse} ${chartVisible ? ex.chartCollapseOpen : ""}`}>
+                        <div className={ex.chartCollapseInner}>
+                          {trend && !trend.error && (
+                            <div className={ex.inlineChart}>
+                              <TrendChart
+                                data={combinedTrend}
+                                inline
+                                showToolbar
+                                onExpand={() => setExpandedQuery(row.query)}
+                              />
+                              {hasCmp && cmpTrendBusy && (
+                                <p className={ex.hint} style={{ textAlign: "left", marginTop: 6 }}>
+                                  <span className={ex.searchLoadingSpinner} style={{ verticalAlign: "middle", marginRight: 6 }} />
+                                  Adding {cmpCity} to the chart…
+                                </p>
+                              )}
+                              {(() => {
+                                // Single-series gets the prose summary; the combined
+                                // chart speaks for itself via its legend + labels.
+                                if (combinedTrend?.series) return null;
+                                const summary = buildTrendSummary(trend.points, result.metric);
+                                return summary ? <p className={ex.trendSummary}>{summary}</p> : null;
+                              })()}
+                            </div>
                           )}
-                          {(() => {
-                            // Single-series gets the prose summary; the combined
-                            // chart speaks for itself via its legend + labels.
-                            if (combinedTrend?.series) return null;
-                            const summary = buildTrendSummary(trend.points, result.metric);
-                            return summary ? <p className={ex.trendSummary}>{summary}</p> : null;
-                          })()}
                         </div>
-                      )}
+                      </div>
                       {hasTrendError && (
                         <p className={ex.hint} style={{ color: "var(--error)", marginTop: 8 }}>
                           {typeof trend.error === "string" ? trend.error : "Could not load trend."}

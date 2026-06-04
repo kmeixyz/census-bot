@@ -76,6 +76,132 @@
   flex-shrink: 0;
 }
 
+/* ── Hamburger menu (mobile only) ─────────────────────────────────────────── */
+.menuButton {
+  display: none; /* shown only on mobile via media query */
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color 0.18s ease, color 0.18s ease;
+}
+
+.menuButton:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.menuOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+}
+
+.menuBackdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+  animation: menuFade 0.2s ease both;
+}
+
+.menuPanel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(78vw, 320px);
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  box-shadow: -12px 0 40px rgba(0, 0, 0, 0.18);
+  padding: 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  animation: menuSlideIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes menuFade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes menuSlideIn {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
+.menuPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.menuPanelTitle {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+.menuClose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.menuClose:hover {
+  border-color: var(--border);
+  color: var(--accent);
+}
+
+.menuLink {
+  min-height: 46px;
+  justify-content: flex-start;
+  font-size: 1rem;
+}
+
+.menuThemeRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 46px;
+  padding: 0 0.9rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  margin-top: 0.25rem;
+}
+
+.menuThemeLabel {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+/* The menu is a mobile affordance — never show it (or a stray open panel) on
+   wider viewports, even if the screen was resized while it was open. */
+@media (min-width: 721px) {
+  .menuOverlay {
+    display: none;
+  }
+}
+
 .navLink {
   display: inline-flex;
   align-items: center;
@@ -159,16 +285,25 @@
 
 @media (max-width: 720px) {
   .nav {
-    flex-wrap: wrap;
-    row-gap: 0.65rem;
+    flex-wrap: nowrap;
     padding: 0.7rem 0.85rem;
   }
 
   .navTrailing {
-    margin-left: 0;
-    width: 100%;
-    justify-content: center;
+    margin-left: auto;
+    width: auto;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
     gap: 0.45rem;
+  }
+
+  /* About + theme toggle move into the hamburger on mobile. */
+  .desktopNavItem {
+    display: none;
+  }
+
+  .menuButton {
+    display: inline-flex;
   }
 
   .navLink {
@@ -195,8 +330,8 @@
   }
 
   .navTrailing > button {
-    width: 36px;
-    height: 36px;
+    width: 42px;
+    height: 42px;
     border-radius: 9px;
   }
 }
@@ -207,8 +342,17 @@
     padding: 0.6rem 0.65rem;
   }
 
+  .logoText {
+    font-size: 1rem;
+  }
+
   .navTrailing {
     gap: 0.25rem;
+  }
+
+  .navTrailing > button {
+    width: 38px;
+    height: 38px;
   }
 
   .navLink {
