@@ -379,7 +379,7 @@ export default function ExploreResults() {
   }, [ready, metrics, city, stateName]);
 
   async function runCompare() {
-    if (!cmpState || !cmpCity) return;
+    if (!cmpCity) return;
     setCmpLoading(true);
     setCmpTrendByQuery({});
     setShowCmpTrendMap({}); // drop overlays from any previous compare city
@@ -520,7 +520,7 @@ export default function ExploreResults() {
     navigateTo("/explore", { from: 0 }, 1);
   }
 
-  const canCompare = !!(cmpState && cmpCity);
+  const canCompare = !!cmpCity; // cmpState is "" for state-level picks
 
   if (!ready) {
     return (
