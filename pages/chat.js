@@ -667,45 +667,6 @@ function AlternativesBlock({ alternatives, onPick }) {
   );
 }
 
-// ── B6: contextual follow-up suggestions ────────────────────────────────────
-// Rendered under the most recent answer so the conversation isn't a dead end.
-// Suggestions are tailored to what the answer was (a stat, a chart, or prose).
-function FollowUps({ kind, onPick }) {
-  const byKind = {
-    stat: [
-      "Show this as a trend over time",
-      "Compare with another city",
-      "What's the margin of error here?",
-    ],
-    chart: [
-      "Compare this with another city",
-      "What's the most recent value?",
-    ],
-    prose: [
-      "Show me a related statistic",
-      "Explain this more simply",
-    ],
-  };
-  const items = byKind[kind] || byKind.prose;
-  return (
-    <div className={styles.followUps}>
-      <span className={styles.followUpsLabel}>Keep going</span>
-      <div className={styles.followUpsRow}>
-        {items.map(text => (
-          <button
-            key={text}
-            type="button"
-            className={styles.followUpChip}
-            onClick={() => onPick(text)}
-          >
-            {text}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ── Clarification card (legacy halt-style picker; kept for safety) ──────────
 function ClarificationCard({ data, onPick, picked }) {
   if (!data) return null;
@@ -1241,8 +1202,6 @@ export default function ChatPage() {
                     // The CSS animation fires once on mount; keys are stable so
                     // earlier rows don't replay when a new message is appended.
                     const isNewestRow = i === messages.length - 1;
-                    const isNewest = isNewestRow && msg.role === "assistant";
-                    const isLastAssistant = isNewest && !loading;
                     const parsed = msg.role === "assistant" ? safeParse(msg.content) : null;
                     const isTrendChart = parsed?.type === "trend_chart";
                     const isBarChart = parsed?.type === "bar_chart";
@@ -1322,12 +1281,6 @@ export default function ChatPage() {
                           )}
                           {msg.role === "assistant" && !isAnyChart && !isClarification && (msg.methodology || msg.caveats) && (
                             <MoreInfo methodology={msg.methodology} caveats={msg.caveats} />
-                          )}
-                          {isLastAssistant && !isChartError && !isClarification && !msg.error && !atLimit && (
-                            <FollowUps
-                              kind={msg.structured ? "stat" : isAnyChart ? "chart" : "prose"}
-                              onPick={text => sendMessage(text)}
-                            />
                           )}
                         </div>
                       </div>

@@ -959,10 +959,12 @@
     text-decoration: none;
   }
 
-  /* Message list owns the scroll; momentum + no scroll-chaining to the body. */
+  /* Message list owns the scroll; momentum + no scroll-chaining to the body.
+     scroll-behavior keeps the auto-scroll-to-newest glide smooth. */
   .messageList {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
+    scroll-behavior: smooth;
     padding: 0.75rem 0.85rem 1rem;
   }
 
@@ -970,13 +972,29 @@
     padding: 0 0.85rem;
   }
 
-  /* Input pinned to the bottom with an opaque background so messages scroll
-     cleanly behind it rather than bleeding through. */
+  /* Sticky footer: pinned to the bottom with an opaque background and a soft
+     elevation, plus a fade scrim so messages dissolve smoothly into it as they
+     scroll behind rather than cutting off at a hard line. */
   .inputArea {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
     flex-shrink: 0;
     background: var(--c-surface);
     border-top: 1px solid var(--c-border);
     padding: 0.6rem 0.85rem calc(0.6rem + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -6px 18px -10px rgba(0, 0, 0, 0.22);
+  }
+
+  .inputArea::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    height: 22px;
+    background: linear-gradient(to top, var(--c-surface), transparent);
+    pointer-events: none;
   }
 
   /* Bubble proportions: cap each message at 85% and push it to its speaker's
@@ -995,9 +1013,15 @@
     max-width: 100%;
   }
 
+  /* The "thinking" skeleton spans the full content width (matching the message
+     input box) rather than the 85% cap used for finished bubbles. */
   .skeletonRow {
-    max-width: 85%;
-    align-self: flex-start;
+    max-width: 100%;
+    align-self: stretch;
+  }
+
+  .skeletonBubble {
+    max-width: 100%;
   }
 
   /* Dimming overlay — covers the chat behind the drawer. Kept mounted so it
@@ -1136,6 +1160,10 @@
   .chatSidebar,
   .historyBackdrop {
     transition: none;
+  }
+
+  .messageList {
+    scroll-behavior: auto;
   }
 }
 
