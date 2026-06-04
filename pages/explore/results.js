@@ -527,14 +527,10 @@ export default function ExploreResults() {
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
       </Head>
       <SiteLayout>
-        <motion.div
-          className={ex.wizardPage}
-          initial={{ opacity: 0, x: fromProgress > targetProgress ? -48 : 48 }}
-          animate={exitDir !== 0
-            ? { opacity: 0, x: exitDir * 48, transition: { duration: 0.2, ease: [0.4, 0, 1, 1] } }
-            : { opacity: 1, x: 0, transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] } }
-          }
-        >
+        {/* Sticky header lives OUTSIDE the animated wrapper: a persistent
+            transform on an ancestor makes position:sticky jitter on iOS, so
+            only the content below slides during step transitions. */}
+        <div className={ex.wizardPage}>
           <h1 className={ex.pageTitle}>Quick Lookup</h1>
 
           <div className={ex.progressBlock}>
@@ -544,6 +540,14 @@ export default function ExploreResults() {
             </div>
           </div>
 
+          <motion.div
+            className={ex.wizardContent}
+            initial={{ opacity: 0, x: fromProgress > targetProgress ? -48 : 48 }}
+            animate={exitDir !== 0
+              ? { opacity: 0, x: exitDir * 48, transition: { duration: 0.2, ease: [0.4, 0, 1, 1] } }
+              : { opacity: 1, x: 0, transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] } }
+            }
+          >
           <div className={ex.card}>
             <p className={ex.question}>Results for {city}{stateName ? `, ${stateName}` : ""}</p>
             <div className={ex.footerNav} style={{ marginTop: "2.25rem", maxWidth: "none" }}>
@@ -692,29 +696,37 @@ export default function ExploreResults() {
                         {trendBusy ? <><span className={ex.searchLoadingSpinner} /> Loading...</> : chartVisible ? "↑ Hide Chart" : "↓ Show Trend"}
                       </button>
 
-                      {chartVisible && (
-                        <div className={ex.inlineChart}>
-                          <TrendChart
-                            data={combinedTrend}
-                            inline
-                            showToolbar
-                            onExpand={() => setExpandedQuery(row.query)}
-                          />
-                          {hasCmp && cmpTrendBusy && (
-                            <p className={ex.hint} style={{ textAlign: "left", marginTop: 6 }}>
-                              <span className={ex.searchLoadingSpinner} style={{ verticalAlign: "middle", marginRight: 6 }} />
-                              Adding {cmpCity} to the chart…
-                            </p>
+                      {/* Grid-row collapse: the chart unrolls smoothly and
+                          pushes the content below it down gently, rather than
+                          snapping open. The wrapper is always mounted so the
+                          0fr→1fr transition fires on first reveal too. */}
+                      <div className={`${ex.chartCollapse} ${chartVisible ? ex.chartCollapseOpen : ""}`}>
+                        <div className={ex.chartCollapseInner}>
+                          {trend && !trend.error && (
+                            <div className={ex.inlineChart}>
+                              <TrendChart
+                                data={combinedTrend}
+                                inline
+                                showToolbar
+                                onExpand={() => setExpandedQuery(row.query)}
+                              />
+                              {hasCmp && cmpTrendBusy && (
+                                <p className={ex.hint} style={{ textAlign: "left", marginTop: 6 }}>
+                                  <span className={ex.searchLoadingSpinner} style={{ verticalAlign: "middle", marginRight: 6 }} />
+                                  Adding {cmpCity} to the chart…
+                                </p>
+                              )}
+                              {(() => {
+                                // Single-series gets the prose summary; the combined
+                                // chart speaks for itself via its legend + labels.
+                                if (combinedTrend?.series) return null;
+                                const summary = buildTrendSummary(trend.points, result.metric);
+                                return summary ? <p className={ex.trendSummary}>{summary}</p> : null;
+                              })()}
+                            </div>
                           )}
-                          {(() => {
-                            // Single-series gets the prose summary; the combined
-                            // chart speaks for itself via its legend + labels.
-                            if (combinedTrend?.series) return null;
-                            const summary = buildTrendSummary(trend.points, result.metric);
-                            return summary ? <p className={ex.trendSummary}>{summary}</p> : null;
-                          })()}
                         </div>
-                      )}
+                      </div>
                       {hasTrendError && (
                         <p className={ex.hint} style={{ color: "var(--error)", marginTop: 8 }}>
                           {typeof trend.error === "string" ? trend.error : "Could not load trend."}
@@ -775,7 +787,8 @@ export default function ExploreResults() {
               </button>
             </div>
           )}
-        </motion.div>
+          </motion.div>
+        </div>
       </SiteLayout>
 
       {/* ── Fullscreen chart modal ── */}

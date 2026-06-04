@@ -3,10 +3,12 @@ import { Fragment, useState, useRef, useEffect } from "react";
 import { animate as animateValue, useReducedMotion } from "framer-motion";
 import { useRouter } from "next/router";
 import Head from "next/head";
+import Link from "next/link";
 import SiteLayout from "../components/SiteLayout";
 import TrendChart from "../components/TrendChart";
 import BarChart from "../components/BarChart";
 import ChatInputBox from "../components/ChatInputBox";
+import ThemeToggle from "../components/ThemeToggle";
 import styles from "../styles/Chat.module.css";
 import { buildCensusProfileUrl } from "../lib/censusConstants";
 import { usePlaceGeoid } from "../lib/usePlaceGeoid";
@@ -665,45 +667,6 @@ function AlternativesBlock({ alternatives, onPick }) {
   );
 }
 
-// ── B6: contextual follow-up suggestions ────────────────────────────────────
-// Rendered under the most recent answer so the conversation isn't a dead end.
-// Suggestions are tailored to what the answer was (a stat, a chart, or prose).
-function FollowUps({ kind, onPick }) {
-  const byKind = {
-    stat: [
-      "Show this as a trend over time",
-      "Compare with another city",
-      "What's the margin of error here?",
-    ],
-    chart: [
-      "Compare this with another city",
-      "What's the most recent value?",
-    ],
-    prose: [
-      "Show me a related statistic",
-      "Explain this more simply",
-    ],
-  };
-  const items = byKind[kind] || byKind.prose;
-  return (
-    <div className={styles.followUps}>
-      <span className={styles.followUpsLabel}>Keep going</span>
-      <div className={styles.followUpsRow}>
-        {items.map(text => (
-          <button
-            key={text}
-            type="button"
-            className={styles.followUpChip}
-            onClick={() => onPick(text)}
-          >
-            {text}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ── Clarification card (legacy halt-style picker; kept for safety) ──────────
 function ClarificationCard({ data, onPick, picked }) {
   if (!data) return null;
@@ -861,6 +824,35 @@ function IcoCompose() {
   );
 }
 
+function IcoMenu() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <line x1="3" y1="12" x2="21" y2="12" />
+      <line x1="3" y1="18" x2="21" y2="18" />
+    </svg>
+  );
+}
+
+function IcoClose() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+
+function IcoNewChat() {
+  // Compose/pencil — the "New Chat" affordance in the mobile top bar.
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+    </svg>
+  );
+}
+
 const STORAGE_KEY = "censusbot_conversations";
 
 function loadConversations() {
@@ -887,6 +879,8 @@ export default function ChatPage() {
   const [minimizedCharts, setMinimizedCharts] = useState({});
   const [conversations, setConversations] = useState([]);
   const [conversationId, setConversationId] = useState(() => `conv_${Date.now()}`);
+  // Mobile-only: chat-history drawer open state.
+  const [historyOpen, setHistoryOpen] = useState(false);
   // doc_id → { title, has_pdf } for resolving chunk-id citations to readable titles.
   // Loaded once on first ACS-cited message; index endpoint gracefully degrades if absent.
   const [docMap, setDocMap] = useState(() => new Map());
@@ -902,6 +896,14 @@ export default function ChatPage() {
   useEffect(() => {
     setConversations(loadConversations());
   }, []);
+
+  // Close the mobile history drawer on Escape.
+  useEffect(() => {
+    if (!historyOpen) return;
+    const onKey = e => { if (e.key === "Escape") setHistoryOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [historyOpen]);
 
   // Auto-save after each completed AI response.
   useEffect(() => {
@@ -1066,6 +1068,7 @@ export default function ChatPage() {
     setExpandedChartIndex(null);
     setMinimizedCharts({});
     setConversationId(`conv_${Date.now()}`);
+    setHistoryOpen(false);
     setTimeout(() => textareaRef.current?.focus(), 50);
   }
 
@@ -1075,6 +1078,7 @@ export default function ChatPage() {
     setInput("");
     setExpandedChartIndex(null);
     setMinimizedCharts({});
+    setHistoryOpen(false);
     setTimeout(() => textareaRef.current?.focus(), 50);
   }
 
@@ -1088,13 +1092,33 @@ export default function ChatPage() {
       <SiteLayout>
         <div className={styles.chatPage}>
 
-          {/* Sidebar */}
-          <div className={styles.chatSidebar}>
+          {/* Mobile-only dimming backdrop behind the history drawer */}
+          <div
+            className={`${styles.historyBackdrop} ${historyOpen ? styles.historyBackdropOpen : ""}`}
+            onClick={() => setHistoryOpen(false)}
+            aria-hidden
+          />
+
+          {/* Sidebar (desktop) / slide-in history drawer (mobile) */}
+          <div className={`${styles.chatSidebar} ${historyOpen ? styles.chatSidebarOpen : ""}`}>
             <div className={styles.sidebarTop}>
+              {/* Drawer header with explicit close — mobile only */}
+              <div className={styles.drawerHeader}>
+                <span className={styles.drawerTitle}>Chats</span>
+                <button
+                  type="button"
+                  className={styles.drawerClose}
+                  aria-label="Close chat history"
+                  onClick={() => setHistoryOpen(false)}
+                >
+                  <IcoClose />
+                </button>
+              </div>
               <button type="button" className={styles.newChatBtn} onClick={clearChat}>
                 <IcoCompose /> New chat
               </button>
             </div>
+            <div className={styles.sidebarDivider} aria-hidden />
             <div className={styles.sidebarList}>
               {conversations.length === 0 ? (
                 <p className={styles.sidebarEmpty}>No conversations yet</p>
@@ -1112,10 +1136,44 @@ export default function ChatPage() {
                 ))
               )}
             </div>
+
+            {/* Drawer footer nav — mobile only. The primary workflows + About
+                live here on the chat page (the global header/bottom-nav are
+                hidden so the input can own the bottom edge). */}
+            <div className={styles.drawerFooter}>
+              <Link href="/explore" className={styles.drawerNavLink}>Quick Lookup</Link>
+              <Link href="/about" className={styles.drawerNavLink}>About</Link>
+              <div className={styles.drawerThemeRow}>
+                <span className={styles.drawerThemeLabel}>Theme</span>
+                <ThemeToggle />
+              </div>
+            </div>
           </div>
 
           {/* Main chat area */}
           <div className={styles.chatMain}>
+
+            {/* Mobile-only sticky top bar: hamburger (history) · CensusBot · New chat */}
+            <header className={styles.mobileTopBar}>
+              <button
+                type="button"
+                className={styles.topBarBtn}
+                aria-label="Open chat history"
+                aria-expanded={historyOpen}
+                onClick={() => setHistoryOpen(true)}
+              >
+                <IcoMenu />
+              </button>
+              <Link href="/" className={styles.mobileTopBarTitle}>CensusBot</Link>
+              <button
+                type="button"
+                className={styles.topBarBtn}
+                aria-label="New chat"
+                onClick={clearChat}
+              >
+                <IcoNewChat />
+              </button>
+            </header>
 
           <div className={styles.chatInner}>
               {/* Message list — or welcome+suggestions when empty */}
@@ -1144,8 +1202,6 @@ export default function ChatPage() {
                     // The CSS animation fires once on mount; keys are stable so
                     // earlier rows don't replay when a new message is appended.
                     const isNewestRow = i === messages.length - 1;
-                    const isNewest = isNewestRow && msg.role === "assistant";
-                    const isLastAssistant = isNewest && !loading;
                     const parsed = msg.role === "assistant" ? safeParse(msg.content) : null;
                     const isTrendChart = parsed?.type === "trend_chart";
                     const isBarChart = parsed?.type === "bar_chart";
@@ -1225,12 +1281,6 @@ export default function ChatPage() {
                           )}
                           {msg.role === "assistant" && !isAnyChart && !isClarification && (msg.methodology || msg.caveats) && (
                             <MoreInfo methodology={msg.methodology} caveats={msg.caveats} />
-                          )}
-                          {isLastAssistant && !isChartError && !isClarification && !msg.error && !atLimit && (
-                            <FollowUps
-                              kind={msg.structured ? "stat" : isAnyChart ? "chart" : "prose"}
-                              onPick={text => sendMessage(text)}
-                            />
                           )}
                         </div>
                       </div>

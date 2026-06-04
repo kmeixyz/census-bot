@@ -237,14 +237,9 @@ export default function ExploreLocation() {
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
       </Head>
       <SiteLayout>
-        <motion.div
-          className={ex.wizardPage}
-          initial={{ opacity: 0, x: fromProgress > targetProgress ? -48 : 48 }}
-          animate={exitDir !== 0
-            ? { opacity: 0, x: exitDir * 48, transition: { duration: 0.2, ease: [0.4, 0, 1, 1] } }
-            : { opacity: 1, x: 0, transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] } }
-          }
-        >
+        {/* Sticky header lives OUTSIDE the animated wrapper to avoid the iOS
+            position:sticky jitter caused by a transform on an ancestor. */}
+        <div className={ex.wizardPage}>
           <h1 className={ex.pageTitle}>Quick Lookup</h1>
 
           <div className={ex.progressBlock}>
@@ -254,6 +249,14 @@ export default function ExploreLocation() {
             </div>
           </div>
 
+          <motion.div
+            className={ex.wizardContent}
+            initial={{ opacity: 0, x: fromProgress > targetProgress ? -48 : 48 }}
+            animate={exitDir !== 0
+              ? { opacity: 0, x: exitDir * 48, transition: { duration: 0.2, ease: [0.4, 0, 1, 1] } }
+              : { opacity: 1, x: 0, transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] } }
+            }
+          >
           <AnimatePresence>
             {contextLabels.length > 0 && (
               <motion.div
@@ -308,7 +311,8 @@ export default function ExploreLocation() {
               </button>
             </div>
           </div>
-        </motion.div>
+          </motion.div>
+        </div>
       </SiteLayout>
     </>
   );

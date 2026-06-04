@@ -76,6 +76,86 @@
   flex-shrink: 0;
 }
 
+/* ── "More" popover (mobile only) ─────────────────────────────────────────── */
+.moreWrap {
+  position: relative;
+  display: none; /* shown only on mobile via media query */
+  flex-shrink: 0;
+}
+
+.moreButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.18s ease, background 0.18s ease;
+}
+
+.moreButton:hover,
+.moreButton[aria-expanded="true"] {
+  color: var(--accent);
+  background: var(--surface-2);
+}
+
+.morePopover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 110;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.18);
+  padding: 0.4rem;
+  transform-origin: top right;
+  animation: popoverIn 0.16s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes popoverIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.moreItem {
+  min-height: 46px;
+  justify-content: flex-start;
+  font-size: 0.98rem;
+  width: 100%;
+}
+
+.moreDivider {
+  height: 1px;
+  background: var(--border);
+  margin: 0.3rem 0.25rem;
+}
+
+.moreThemeRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 46px;
+  padding: 0 0.6rem 0 0.9rem;
+  border-radius: 8px;
+}
+
+.moreThemeLabel {
+  font-size: 0.98rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+/* ── Bottom navigation bar (mobile only) ──────────────────────────────────── */
+.bottomNav {
+  display: none; /* shown only on mobile via media query */
+}
+
 .navLink {
   display: inline-flex;
   align-items: center;
@@ -158,77 +238,109 @@
 }
 
 @media (max-width: 720px) {
+  /* Decluttered header: logo on the left, single "More" icon on the right. */
   .nav {
-    flex-wrap: wrap;
-    row-gap: 0.65rem;
-    padding: 0.7rem 0.85rem;
+    flex-wrap: nowrap;
+    padding: 0.55rem 0.85rem;
   }
 
   .navTrailing {
-    margin-left: 0;
-    width: 100%;
-    justify-content: center;
-    gap: 0.45rem;
-  }
-
-  .navLink {
-    padding: 0.5rem 0.75rem;
-    font-size: 0.85rem;
-    gap: 0.35rem;
-  }
-
-  .navLink svg {
-    width: 16px;
-    height: 16px;
-  }
-
-  .cta {
-    display: inline-flex;
-    padding: 0.5rem 0.8rem;
-    font-size: 0.85rem;
-    gap: 0.35rem;
-  }
-
-  .ctaIcon {
-    width: 16px;
-    height: 16px;
-  }
-
-  .navTrailing > button {
-    width: 36px;
-    height: 36px;
-    border-radius: 9px;
-  }
-}
-
-/* Very small phones — hide nav icons so items fit on one row */
-@media (max-width: 400px) {
-  .nav {
-    padding: 0.6rem 0.65rem;
-  }
-
-  .navTrailing {
+    margin-left: auto;
+    width: auto;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
     gap: 0.25rem;
   }
 
-  .navLink {
-    padding: 0.42rem 0.55rem;
-    font-size: 0.78rem;
-    gap: 0;
-  }
-
-  .navLink svg {
+  /* Inline nav items (About, Quick Lookup, Ask Question, theme) are not in the
+     header on mobile — they live in the bottom nav + the "More" popover. */
+  .desktopNavItem {
     display: none;
   }
 
-  .cta {
-    padding: 0.42rem 0.65rem;
-    font-size: 0.78rem;
-    gap: 0.25rem;
+  .moreWrap {
+    display: flex;
   }
 
-  .ctaIcon {
-    width: 14px;
-    height: 14px;
+  /* Pin the primary workflows to a thumb-friendly bottom bar. */
+  .bottomNav {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 90;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -2px 16px rgba(0, 0, 0, 0.06);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .bottomNavItem {
+    flex: 1;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+    min-height: 58px;
+    padding: 0.5rem 0.5rem;
+    color: var(--muted);
+    text-decoration: none;
+    font-family: inherit;
+    font-size: 0.74rem;
+    font-weight: 600;
+    transition: color 0.15s ease, background 0.15s ease;
+  }
+
+  .bottomNavItem:active {
+    background: var(--surface-2);
+  }
+
+  .bottomNavItemActive {
+    color: var(--accent);
+  }
+
+  /* Keep page content clear of the fixed bottom bar. */
+  .main {
+    padding-bottom: calc(58px + env(safe-area-inset-bottom, 0px) + 1.25rem);
+  }
+}
+
+/* Very small phones */
+@media (max-width: 400px) {
+  .nav {
+    padding: 0.5rem 0.65rem;
+  }
+
+  .logoText {
+    font-size: 1.05rem;
+  }
+}
+
+/* ── Chat route (mobile): give the chat its own full-viewport app shell ─────
+   The chat page renders its own sticky top bar + pinned input, so the global
+   header and bottom nav step aside and the layout fills exactly 100dvh. */
+@media (max-width: 720px) {
+  .chatRoute {
+    height: 100vh;
+    height: 100dvh;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow: hidden;
+  }
+
+  .chatRoute .nav,
+  .chatRoute .bottomNav {
+    display: none;
+  }
+
+  .chatRoute .main {
+    height: 100vh;
+    height: 100dvh;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
   }
 }

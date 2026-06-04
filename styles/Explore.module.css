@@ -7,6 +7,17 @@
   margin: 0 auto;
 }
 
+/* Animated content wrapper — holds everything below the sticky header so the
+   step-transition slide doesn't put a transform on the sticky element's
+   ancestor chain (which makes position:sticky jitter on iOS). */
+.wizardContent {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+}
+
 .pageTitle {
   font-size: clamp(1.45rem, 3.5vw, 1.85rem);
   font-weight: 600;
@@ -53,6 +64,31 @@
 .progressBlock {
   width: 100%;
   max-width: 980px;
+}
+
+/* On mobile the breadcrumb + progress bar stick below the header as the user
+   scrolls through results, so "Metrics"/"Location" stay one tap away. The
+   content column and result cards share this width, so they scroll cleanly
+   under the opaque strip. */
+@media (max-width: 720px) {
+  .progressBlock {
+    position: sticky;
+    top: 60px;
+    z-index: 30;
+    background: var(--bg);
+    padding: 0.6rem 0 0.5rem;
+    box-shadow: 0 8px 14px -8px rgba(0, 0, 0, 0.18);
+  }
+
+  .progressBlock .stepNav {
+    margin-bottom: 0.45rem;
+  }
+}
+
+@media (max-width: 400px) {
+  .progressBlock {
+    top: 58px;
+  }
 }
 
 /* ── B1/D2: clickable step breadcrumb ─────────────────────────────────────── */
@@ -501,6 +537,16 @@
 
   .bottomActions {
     padding-bottom: 1.5rem;
+  }
+}
+
+/* Touch-target sizing: ensure the key result-card actions clear the 44–48px
+   minimum so they're comfortable to tap on mobile. */
+@media (max-width: 720px) {
+  .statChartBtn,
+  .btnCompare,
+  .btnStartNew {
+    min-height: 46px;
   }
 }
 
@@ -971,12 +1017,34 @@
 
 .inlineChart {
   margin-top: 1rem;
-  animation: chartSlideIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-@keyframes chartSlideIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
+/* ── Smooth accordion reveal for the inline trend chart ──────────────────────
+   The CSS-grid 0fr→1fr trick animates the row height so the chart unrolls and
+   eases the content below it down, instead of the page snapping open. */
+.chartCollapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.3s ease;
+}
+
+.chartCollapseOpen {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.chartCollapseInner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chartCollapse {
+    transition: none;
+  }
 }
 
 .trendSummary {
