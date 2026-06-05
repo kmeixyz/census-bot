@@ -97,6 +97,19 @@ function initials(name) {
 
 export default function About() {
   const [activeSection, setActiveSection] = useState("overview");
+  // Height of the site's sticky top nav, so the mobile sticky header (title +
+  // section nav) docks directly beneath it instead of sliding underneath.
+  const [navHeight, setNavHeight] = useState(0);
+
+  useEffect(() => {
+    const measure = () => {
+      const nav = document.querySelector("nav");
+      if (nav) setNavHeight(nav.getBoundingClientRect().height);
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
 
   useEffect(() => {
     const sections = NAV_SECTIONS
@@ -137,24 +150,29 @@ export default function About() {
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
       </Head>
       <SiteLayout>
-        <div className={landing.aboutLayout}>
+        <div
+          className={landing.aboutLayout}
+          style={{ "--about-sticky-top": `${navHeight}px` }}
+        >
           <aside className={landing.aboutSidebar}>
             <div className={landing.aboutSidebarInner}>
-              <h1 className={landing.aboutSidebarTitle}>About CensusBot</h1>
+              <div className={landing.aboutSidebarHeader}>
+                <h1 className={landing.aboutSidebarTitle}>About CensusBot</h1>
 
-              <nav className={landing.aboutNav} aria-label="About sections">
-                {NAV_SECTIONS.map(section => (
-                  <a
-                    key={section.id}
-                    href={`#${section.id}`}
-                    className={`${landing.aboutNavLink} ${
-                      activeSection === section.id ? landing.aboutNavLinkActive : ""
-                    }`}
-                  >
-                    {section.label}
-                  </a>
-                ))}
-              </nav>
+                <nav className={landing.aboutNav} aria-label="About sections">
+                  {NAV_SECTIONS.map(section => (
+                    <a
+                      key={section.id}
+                      href={`#${section.id}`}
+                      className={`${landing.aboutNavLink} ${
+                        activeSection === section.id ? landing.aboutNavLinkActive : ""
+                      }`}
+                    >
+                      {section.label}
+                    </a>
+                  ))}
+                </nav>
+              </div>
 
               <div className={landing.glanceBlock}>
                 <dl className={landing.glanceList}>
@@ -200,7 +218,6 @@ export default function About() {
               <ol className={landing.stepList}>
                 {STEPS.map(step => (
                   <li key={step.num} className={landing.stepItem}>
-                    <span className={landing.stepNum}>{step.num}</span>
                     <span className={landing.stepBody}>
                       <span className={landing.stepTitle}>{step.title}</span>
                       <span className={landing.stepDesc}>{step.desc}</span>

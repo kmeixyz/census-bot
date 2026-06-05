@@ -373,6 +373,12 @@
   flex-direction: column;
 }
 
+/* Wraps the title + section nav. On desktop it's a plain block inside the
+   already-sticky sidebar; on mobile it becomes its own sticky header. */
+.aboutSidebarHeader {
+  display: contents;
+}
+
 .aboutSidebarTitle {
   font-family: var(--font-head);
   font-size: 1.15rem;
@@ -521,15 +527,6 @@
   border-bottom: 1px solid var(--border);
 }
 
-.stepNum {
-  flex: none;
-  font-family: var(--font-head);
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--accent);
-  width: 1.5rem;
-}
-
 .stepBody {
   display: flex;
   flex-direction: column;
@@ -647,21 +644,47 @@
 @media (max-width: 860px) {
   .aboutLayout {
     grid-template-columns: 1fr;
-    gap: 2rem;
+    gap: 1.5rem;
   }
 
-  .aboutSidebar {
-    position: static;
-    top: auto;
+  /* Flatten the sidebar so the header becomes a direct child of the layout
+     grid, which spans the whole page — that lets it stay sticky while the rest
+     of the page scrolls underneath it. */
+  .aboutSidebar,
+  .aboutSidebarInner {
+    display: contents;
+  }
+
+  .aboutSidebarHeader {
+    display: block;
+    position: sticky;
+    top: var(--about-sticky-top, 52px);
+    z-index: 30;
+    background: var(--bg);
+    padding: 0.8rem 0 0.7rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .aboutSidebarTitle {
+    margin-bottom: 0.7rem;
   }
 
   .aboutNav {
     flex-flow: row wrap;
     gap: 0.35rem;
+    padding-bottom: 0;
+    margin-bottom: 0;
+    border-bottom: none;
   }
 
   .aboutContent {
     max-width: none;
+  }
+
+  /* Clear the sticky site nav + the sticky about header when jumping to an
+     anchor. */
+  .aboutSection {
+    scroll-margin-top: calc(var(--about-sticky-top, 52px) + 5.5rem);
   }
 
   .teamGrid {
@@ -1376,6 +1399,11 @@
 }
 
 /* ── /learn — doc library + search ────────────────────────────────────────── */
+/* Learn page header — gives the title room above the search card. */
+.aboutHero {
+  margin-bottom: 1.75rem;
+}
+
 .learnPage {
   width: 100%;
   max-width: 880px;
